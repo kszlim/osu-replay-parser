@@ -17,7 +17,7 @@ setup(
     author = 'Kevin Lim',
     author_email = 'kszlim@gmail.com',
     url = 'https://github.com/kszlim/osu-replay-parser',
-    download_url = 'https://github.com/kszlim/osu-replay-parser/tarball/0.2.0',
+    download_url = 'https://github.com/kszlim/osu-replay-parser/tarball/0.2.2',
     license = 'MIT',
     packages = ['osrparse']
 )
