@@ -1,6 +1,6 @@
 from distutils.core import setup
 
-version = '0.1.2'
+version = '0.2.0'
 
 setup(
     name = 'osrparse',
@@ -17,7 +17,7 @@ setup(
     author = 'Kevin Lim',
     author_email = 'kszlim@gmail.com',
     url = 'https://github.com/kszlim/osu-replay-parser',
-    download_url = 'https://github.com/kszlim/osu-replay-parser/tarball/0.1.2',
+    download_url = 'https://github.com/kszlim/osu-replay-parser/tarball/0.2.0',
     license = 'MIT',
     packages = ['osrparse']
 )
