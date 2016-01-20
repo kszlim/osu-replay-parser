@@ -1,8 +1,8 @@
-import setuptools
+from distutils.core import setup
 
 version = '0.1.0'
 
-setuptools.setup(
+setup(
     name = 'osrparse',
     version = version,
     description = "Python implementation of osu! rhythm game replays.",
@@ -17,7 +17,7 @@ setuptools.setup(
     author = 'Kevin Lim',
     author_email = 'kszlim@gmail.com',
     url = 'https://github.com/kszlim/osu-replay-parser',
-    download_url = 'https://github.com/kszlim/osu-replay-parser/tarball/0.1'
+    download_url = 'https://github.com/kszlim/osu-replay-parser/tarball/0.1',
     license = 'MIT',
     packages = ['osrparse']
 )
