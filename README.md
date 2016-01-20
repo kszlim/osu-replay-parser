@@ -23,7 +23,7 @@ from osrparse import parse_replay
 parse_replay_file(byteString)
 ```
 Replay instances provide these fields
-```
+```python
 self.game_mode #GameMode enum
 self.game_version #Integer
 self.beatmap_hash #String
