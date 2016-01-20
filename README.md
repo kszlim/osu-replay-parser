@@ -4,7 +4,9 @@ This is a parser for osu! rhythm game replays as described by https://osu.ppy.sh
 
 ## Installation
 To install osrparse, simply:
-> $pip install osrparse
+```
+$pip install osrparse
+```
 
 ## Documentation
 To parse a replay from a filepath:
