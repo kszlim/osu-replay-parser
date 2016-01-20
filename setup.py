@@ -1,10 +1,9 @@
 from distutils.core import setup
 
-version = '0.2.0'
 
 setup(
     name = 'osrparse',
-    version = version,
+    version = '0.2.2',
     description = "Python implementation of osu! rhythm game replay parser.",
     classifiers = [
         'Topic :: Games/Entertainment',
