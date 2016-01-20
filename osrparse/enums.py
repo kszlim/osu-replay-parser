@@ -2,10 +2,10 @@ from enum import Enum
 
 
 class GameMode(Enum):
-    standard = 0
-    taiko = 1
-    catch_the_beat = 2
-    osumania = 3
+    Standard = 0
+    Taiko = 1
+    CatchTheBeat = 2
+    Osumania = 3
 
 
 class ModCombination(Enum):

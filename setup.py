@@ -1,5 +1,5 @@
 from distutils.core import setup
-
+from setuptools import find_packages
 
 setup(
     name = 'osrparse',
@@ -18,5 +18,6 @@ setup(
     url = 'https://github.com/kszlim/osu-replay-parser',
     download_url = 'https://github.com/kszlim/osu-replay-parser/tarball/0.2.2',
     license = 'MIT',
-    packages = ['osrparse']
+    test_suite="tests",
+    packages = find_packages()
 )
