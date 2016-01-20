@@ -4,7 +4,9 @@ This is a parser for osu! rhythm game replays as described by https://osu.ppy.sh
 
 ## Installation
 To install osrparse, simply:
-> $pip install osrparse
+```
+$ pip install osrparse
+```
 
 ## Documentation
 To parse a replay from a filepath:
@@ -23,7 +25,7 @@ from osrparse import parse_replay
 parse_replay_file(byteString)
 ```
 Replay instances provide these fields
-```
+```python
 self.game_mode #GameMode enum
 self.game_version #Integer
 self.beatmap_hash #String
