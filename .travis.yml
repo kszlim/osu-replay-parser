@@ -2,4 +2,7 @@ language: python
 python:
   - "3.4"
 
+install:
+  - pip install .
+
 script: python -m unittest tests
