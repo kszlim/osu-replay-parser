@@ -1,8 +1,13 @@
 language: python
 python:
-  - "3.4"
-
+- '3.4'
 install:
-  - pip install .
-
+- pip install .
 script: python -m unittest tests
+deploy:
+  provider: pypi
+  user: "kszlim"
+  password:
+    secure: wdDP+SLMsr81fVX1Bp80gwT731881iSHhw6Ahd/ypLUXQdAhqHNXf5CBclshcuMRmIohiF6kIcuqYPVg2ntY8aTr++oDLJ7SbbM/ClMbw7w4eprvdWGBrIC2/IHThnixcx1hLo3OFOaQ1vtbvkg1RQnB4TXeD95gu/fsHljv71YX09PU4wFHdwlp31jJ2sRzfL+e2zufNETka0NTxBM+3jBaBwqi9QoJ3VFbSz4DBNpgZNpmHnc1RroKS67PtfC3w4/AkcUfsmKDIlGfSgsUCQdrNvKjiHROsQ7GcWTLyu/QIQ+Ft4qLUKbSX4bmgqz4X62b6GyERfLCfWENfnLjNAsOqQcP6/VzeUGzFJbZ0uxjwQqoTJoP+YhKx3qZHCD7UCLWTBylWFzKx4pG4AEWp4NMqPxGR4DndxNXrJBF5Topr81GDQpQBjoKPnsQdD/j8muPG0ir4HuXOW5MCIhwclsFgc8rKp8MtGHCS7+ZCAJbFPTFKLJmGeemMQkycLDP0FGxmBHegcyYUu0fAlw1E9DYpbVi9VdH61sD4rOm7h7pWBFOE5fcdwGV9vqkJcMiM9+890TqjT7XSBFo3NdjSDchvkLIAmwFJXXixeWXIEuSoBrGbIuQxyLjxL5fyMX6KlIUOrjA+Hiz+T/YRHgJoyrZi6Gwwz9+Jx8Kl3G3Ibk=
+  on:
+    tags: true
