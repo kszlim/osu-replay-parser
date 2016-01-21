@@ -36,6 +36,7 @@ class Replay(object):
         self.mod_combination = None
         self.life_bar_graph = None
         self.timestamp = None
+        self.play_data = None
         self.parse_replay_and_initialize_fields(replay_data)
 
     def parse_replay_and_initialize_fields(self, replay_data):
@@ -153,8 +154,20 @@ class Replay(object):
         self.offset = offset_end
 
     def parse_mod_combination(self, replay_data):
+
+        # Generator yielding value of each bit in an integer if it's set + value
+        # of LSB no matter what .
+        def bits(n):
+            if n == 0:
+                yield 0
+            while n:
+                b = n & (~n+1)
+                yield b
+                n ^= b
+
         offset_end = self.offset + Replay.__INT
-        self.mod_combination = ModCombination(self.__parse_as_int(replay_data[self.offset:offset_end]))
+        bit_values_gen = bits(self.__parse_as_int(replay_data[self.offset:offset_end]))
+        self.mod_combination = frozenset(ModCombination(mod_val) for mod_val in bit_values_gen)
         self.offset = offset_end
 
     def parse_life_bar_graph(self, replay_data):

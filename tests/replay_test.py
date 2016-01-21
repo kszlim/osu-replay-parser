@@ -9,7 +9,8 @@ class TestStandardReplay(unittest.TestCase):
     def setUpClass(cls):
         with open('tests/resources/replay.osr', 'rb') as f:
             data = f.read()
-        cls._replays =[parse_replay(data), parse_replay_file('tests/resources/replay.osr')]
+        cls._replays = [parse_replay(data), parse_replay_file('tests/resources/replay.osr')]
+        cls._combination_replay = parse_replay_file('tests/resources/replay2.osr')
 
     def test_replay_mode(self):
         for replay in self._replays:
@@ -44,9 +45,12 @@ class TestStandardReplay(unittest.TestCase):
         for replay in self._replays:
             self.assertEqual(replay.is_perfect_combo, True, "is_perfect_combo is wrong")
 
-    def test_mod_combination(self):
+    def test_nomod(self):
         for replay in self._replays:
-            self.assertEqual(replay.mod_combination, ModCombination.NoMod, "Mod combination is wrong")
+            self.assertEqual(replay.mod_combination, frozenset([ModCombination.NoMod]), "Mod combination is wrong")
+
+    def test_mod_combination(self):
+        self.assertEqual(self._combination_replay.mod_combination, frozenset([ModCombination.Hidden, ModCombination.HardRock]), "Mod combination is wrong")
 
     def test_timestamp(self):
         for replay in self._replays:
