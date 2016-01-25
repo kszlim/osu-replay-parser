@@ -8,7 +8,7 @@ class GameMode(Enum):
     Osumania = 3
 
 
-class ModCombination(Enum):
+class Mod(Enum):
     NoMod          = 0
     NoFail         = 1
     Easy           = 2

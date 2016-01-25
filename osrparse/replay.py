@@ -1,4 +1,4 @@
-from .enums import GameMode, ModCombination
+from .enums import GameMode, Mod
 import lzma
 
 
@@ -167,7 +167,7 @@ class Replay(object):
 
         offset_end = self.offset + Replay.__INT
         bit_values_gen = bits(self.__parse_as_int(replay_data[self.offset:offset_end]))
-        self.mod_combination = frozenset(ModCombination(mod_val) for mod_val in bit_values_gen)
+        self.mod_combination = frozenset(Mod(mod_val) for mod_val in bit_values_gen)
         self.offset = offset_end
 
     def parse_life_bar_graph(self, replay_data):
