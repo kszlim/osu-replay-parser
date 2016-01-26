@@ -54,9 +54,9 @@ class TestStandardReplay(unittest.TestCase):
 
     def test_timestamp(self):
         for replay in self._replays:
-            self.assertEqual(replay.timestamp, 634953330940000000, "Mod combination is wrong")
+            self.assertEqual(replay.timestamp, 634953330940000000, "Timestamp is wrong")
 
     def test_play_data(self):
         for replay in self._replays:
-            self.assertIsInstance(replay.play_data[0], ReplayEvent, "Mod combination is wrong")
-            self.assertEqual(len(replay.play_data), 17500, "Mod combination is wrong")
+            self.assertIsInstance(replay.play_data[0], ReplayEvent, "Replay data is wrong")
+            self.assertEqual(len(replay.play_data), 17500, "Replay data is wrong")
