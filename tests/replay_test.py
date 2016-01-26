@@ -1,6 +1,6 @@
 import unittest
 from osrparse.replay import parse_replay, parse_replay_file, ReplayEvent
-from osrparse.enums import GameMode, ModCombination
+from osrparse.enums import GameMode, Mod
 
 
 class TestStandardReplay(unittest.TestCase):
@@ -47,16 +47,16 @@ class TestStandardReplay(unittest.TestCase):
 
     def test_nomod(self):
         for replay in self._replays:
-            self.assertEqual(replay.mod_combination, frozenset([ModCombination.NoMod]), "Mod combination is wrong")
+            self.assertEqual(replay.mod_combination, frozenset([Mod.NoMod]), "Mod combination is wrong")
 
     def test_mod_combination(self):
-        self.assertEqual(self._combination_replay.mod_combination, frozenset([ModCombination.Hidden, ModCombination.HardRock]), "Mod combination is wrong")
+        self.assertEqual(self._combination_replay.mod_combination, frozenset([Mod.Hidden, Mod.HardRock]), "Mod combination is wrong")
 
     def test_timestamp(self):
         for replay in self._replays:
-            self.assertEqual(replay.timestamp, 634953330940000000, "Mod combination is wrong")
+            self.assertEqual(replay.timestamp, 634953330940000000, "Timestamp is wrong")
 
     def test_play_data(self):
         for replay in self._replays:
-            self.assertIsInstance(replay.play_data[0], ReplayEvent, "Mod combination is wrong")
-            self.assertEqual(len(replay.play_data), 17500, "Mod combination is wrong")
+            self.assertIsInstance(replay.play_data[0], ReplayEvent, "Replay data is wrong")
+            self.assertEqual(len(replay.play_data), 17500, "Replay data is wrong")
