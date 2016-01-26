@@ -1,5 +1,5 @@
 from .enums import GameMode, Mod
-import lzma
+import lzma, struct
 
 
 class ReplayEvent(object):
@@ -40,24 +40,44 @@ class Replay(object):
         self.parse_replay_and_initialize_fields(replay_data)
 
     def parse_replay_and_initialize_fields(self, replay_data):
-        self.parse_game_mode(replay_data)
-        self.parse_game_version(replay_data)
+        self.parse_game_mode_and_version(replay_data)
         self.parse_beatmap_hash(replay_data)
         self.parse_player_name(replay_data)
         self.parse_replay_hash(replay_data)
-        self.parse_300s(replay_data)
-        self.parse_100s(replay_data)
-        self.parse_50s(replay_data)
-        self.parse_gekis(replay_data)
-        self.parse_katus(replay_data)
-        self.parse_misses(replay_data)
-        self.parse_score(replay_data)
-        self.parse_max_combo(replay_data)
-        self.parse_is_perfect_combo(replay_data)
-        self.parse_mod_combination(replay_data)
+        self.parse_score_stats(replay_data)
         self.parse_life_bar_graph(replay_data)
-        self.parse_timestamp(replay_data)
+        self.parse_timestamp_and_replay_length(replay_data)
         self.parse_play_data(replay_data)
+
+    def parse_game_mode_and_version(self, replay_data):
+        format_specifier = "<bi"
+        data = struct.unpack_from(format_specifier, replay_data, self.offset)
+        self.offset += struct.calcsize(format_specifier)
+        self.game_mode, self.game_version = (GameMode(data[0]), data[1])
+
+    def unpack_game_stats(self, game_stats):
+        self.number_300s, self.number_100s, self.number_50s, self.gekis, self.katus, self.misses, self.score, self.max_combo, self.is_perfect_combo, self.mod_combination = game_stats
+
+    def parse_mod_combination(self):
+        # Generator yielding value of each bit in an integer if it's set + value
+        # of LSB no matter what .
+        def bits(n):
+            if n == 0:
+                yield 0
+            while n:
+                b = n & (~n+1)
+                yield b
+                n ^= b
+
+        bit_values_gen = bits(self.mod_combination)
+        self.mod_combination = frozenset(Mod(mod_val) for mod_val in bit_values_gen)
+
+    def parse_score_stats(self, replay_data):
+        format_specifier = "<hhhhhhih?i"
+        data = struct.unpack_from(format_specifier, replay_data, self.offset)
+        self.unpack_game_stats(data)
+        self.parse_mod_combination()
+        self.offset += struct.calcsize(format_specifier)
 
     @staticmethod
     def __parse_as_int(bytestring):
@@ -74,16 +94,6 @@ class Replay(object):
                 break
             shift += 7
         return result
-
-    def parse_game_mode(self, replay_data):
-        offset_end = self.offset + Replay.__BYTE
-        self.game_mode = GameMode(self.__parse_as_int(replay_data[self.offset:offset_end]))
-        self.offset = offset_end
-
-    def parse_game_version(self, replay_data):
-        offset_end = self.offset + Replay.__INT
-        self.game_version = self.__parse_as_int(replay_data[self.offset:offset_end])
-        self.offset = offset_end
 
     def parse_player_name(self, replay_data):
         self.player_name = self.parse_string(replay_data)
@@ -108,87 +118,22 @@ class Replay(object):
     def parse_replay_hash(self, replay_data):
         self.replay_hash = self.parse_string(replay_data)
 
-    def parse_300s(self, replay_data):
-        offset_end = self.offset + Replay.__SHORT
-        self.number_300s = self.__parse_as_int(replay_data[self.offset:offset_end])
-        self.offset = offset_end
-
-    def parse_100s(self, replay_data):
-        offset_end = self.offset + Replay.__SHORT
-        self.number_100s = self.__parse_as_int(replay_data[self.offset:offset_end])
-        self.offset = offset_end
-
-    def parse_50s(self, replay_data):
-        offset_end = self.offset + Replay.__SHORT
-        self.number_50s = self.__parse_as_int(replay_data[self.offset:offset_end])
-        self.offset = offset_end
-
-    def parse_gekis(self, replay_data):
-        offset_end = self.offset + Replay.__SHORT
-        self.gekis = self.__parse_as_int(replay_data[self.offset:offset_end])
-        self.offset = offset_end
-
-    def parse_katus(self, replay_data):
-        offset_end = self.offset + Replay.__SHORT
-        self.katus = self.__parse_as_int(replay_data[self.offset:offset_end])
-        self.offset = offset_end
-
-    def parse_misses(self, replay_data):
-        offset_end = self.offset + Replay.__SHORT
-        self.misses = self.__parse_as_int(replay_data[self.offset:offset_end])
-        self.offset = offset_end
-
-    def parse_score(self, replay_data):
-        offset_end = self.offset + Replay.__INT
-        self.score = self.__parse_as_int(replay_data[self.offset:offset_end])
-        self.offset = offset_end
-
-    def parse_max_combo(self, replay_data):
-        offset_end = self.offset + Replay.__SHORT
-        self.max_combo = self.__parse_as_int(replay_data[self.offset:offset_end])
-        self.offset = offset_end
-
-    def parse_is_perfect_combo(self, replay_data):
-        offset_end = self.offset + Replay.__BYTE
-        self.is_perfect_combo = bool(self.__parse_as_int(replay_data[self.offset:offset_end]))
-        self.offset = offset_end
-
-    def parse_mod_combination(self, replay_data):
-
-        # Generator yielding value of each bit in an integer if it's set + value
-        # of LSB no matter what .
-        def bits(n):
-            if n == 0:
-                yield 0
-            while n:
-                b = n & (~n+1)
-                yield b
-                n ^= b
-
-        offset_end = self.offset + Replay.__INT
-        bit_values_gen = bits(self.__parse_as_int(replay_data[self.offset:offset_end]))
-        self.mod_combination = frozenset(Mod(mod_val) for mod_val in bit_values_gen)
-        self.offset = offset_end
-
     def parse_life_bar_graph(self, replay_data):
         self.life_bar_graph = self.parse_string(replay_data)
 
-    def parse_timestamp(self, replay_data):
-        offset_end = self.offset + Replay.__LONG
-        self.timestamp = self.__parse_as_int(replay_data[self.offset:offset_end])
-        self.offset = offset_end
-
-    def parse_replay_data_length(self, replay_data):
-        offset_end = self.offset + Replay.__INT
-        self.__replay_length = self.__parse_as_int(replay_data[self.offset:offset_end])
-        self.offset = offset_end
+    def parse_timestamp_and_replay_length(self, replay_data):
+        format_specifier = "<qi"
+        (self.timestamp, self.__replay_length) = struct.unpack_from(format_specifier, replay_data, self.offset)
+        self.offset += struct.calcsize(format_specifier)
 
     def parse_play_data(self, replay_data):
-        self.parse_replay_data_length(replay_data)
         offset_end = self.offset+self.__replay_length
-        datastring = lzma.decompress(replay_data[self.offset:offset_end], format=lzma.FORMAT_AUTO).decode('ascii')[:-1]
-        events = [eventstring.split('|') for eventstring in datastring.split(',')]
-        self.play_data = [ReplayEvent(int(event[0]), float(event[1]), float(event[2]), int(event[3])) for event in events]
+        if self.game_mode != GameMode.Standard:
+            self.play_data = None
+        else:
+            datastring = lzma.decompress(replay_data[self.offset:offset_end], format=lzma.FORMAT_AUTO).decode('ascii')[:-1]
+            events = [eventstring.split('|') for eventstring in datastring.split(',')]
+            self.play_data = [ReplayEvent(int(event[0]), float(event[1]), float(event[2]), int(event[3])) for event in events]
         self.offset = offset_end
 
 def parse_replay(replay_data):
