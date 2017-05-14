@@ -1,5 +1,5 @@
 from .enums import GameMode, Mod
-import lzma, struct
+import lzma, struct, datetime
 
 
 class ReplayEvent(object):
