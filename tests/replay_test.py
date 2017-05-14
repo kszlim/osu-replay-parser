@@ -1,4 +1,4 @@
-import unittest
+import unittest, datetime
 from osrparse.replay import parse_replay, parse_replay_file, ReplayEvent
 from osrparse.enums import GameMode, Mod
 
