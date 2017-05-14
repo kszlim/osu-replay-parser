@@ -123,7 +123,8 @@ class Replay(object):
 
     def parse_timestamp_and_replay_length(self, replay_data):
         format_specifier = "<qi"
-        (self.timestamp, self.__replay_length) = struct.unpack_from(format_specifier, replay_data, self.offset)
+        (t, self.__replay_length) = struct.unpack_from(format_specifier, replay_data, self.offset)
+        self.timestamp = datetime.datetime(1, 1, 1) + datetime.timedelta(microseconds=t/10)
         self.offset += struct.calcsize(format_specifier)
 
     def parse_play_data(self, replay_data):
