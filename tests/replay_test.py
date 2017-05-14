@@ -54,7 +54,7 @@ class TestStandardReplay(unittest.TestCase):
 
     def test_timestamp(self):
         for replay in self._replays:
-            self.assertEqual(replay.timestamp, 634953330940000000, "Timestamp is wrong")
+            self.assertEqual(replay.timestamp, datetime.datetime(2013, 2, 1, 16, 31, 34), "Timestamp is wrong")
 
     def test_play_data(self):
         for replay in self._replays:
