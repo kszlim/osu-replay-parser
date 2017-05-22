@@ -43,7 +43,7 @@ self.max_combo #Integer
 self.is_perfect_combo #Boolean
 self.mod_combination #frozenset of Mods
 self.life_bar_graph #String, unparsed as of now
-self.timestamp #Integer
+self.timestamp #Python Datetime object
 self.play_data #List of ReplayEvent instances
 ```
 
