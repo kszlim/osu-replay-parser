@@ -17,7 +17,7 @@ class Replay(object):
     __LONG = 8
 
     #Order of field initilization matters.
-    def __init__(self, replay_data):
+    def __init__(self, replay_data, pure_lzma=False):
         self.offset = 0
         self.game_mode = None
         self.game_version = None
@@ -37,9 +37,12 @@ class Replay(object):
         self.life_bar_graph = None
         self.timestamp = None
         self.play_data = None
-        self.parse_replay_and_initialize_fields(replay_data)
+        self.parse_replay_and_initialize_fields(replay_data, pure_lzma)
 
-    def parse_replay_and_initialize_fields(self, replay_data):
+    def parse_replay_and_initialize_fields(self, replay_data, pure_lzma):
+        if(pure_lzma):
+            self.data_from_lmza(replay_data)
+            return
         self.parse_game_mode_and_version(replay_data)
         self.parse_beatmap_hash(replay_data)
         self.parse_player_name(replay_data)
@@ -137,8 +140,13 @@ class Replay(object):
             self.play_data = [ReplayEvent(int(event[0]), float(event[1]), float(event[2]), int(event[3])) for event in events]
         self.offset = offset_end
 
-def parse_replay(replay_data):
-    return Replay(replay_data)
+    def data_from_lmza(self, lzma_string):
+        datastring = lzma.decompress(lzma_string, format=lzma.FORMAT_AUTO).decode('ascii')[:-1]
+        events = [eventstring.split('|') for eventstring in datastring.split(',')]
+        self.play_data = [ReplayEvent(int(event[0]), float(event[1]), float(event[2]), int(event[3])) for event in events]
+
+def parse_replay(replay_data, pure_lzma=False):
+    return Replay(replay_data, pure_lzma)
 
 def parse_replay_file(replay_path):
     with open(replay_path, 'rb') as f:
