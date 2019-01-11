@@ -1,13 +1,24 @@
 [![Build Status](https://travis-ci.org/kszlim/osu-replay-parser.svg?branch=master)](https://travis-ci.org/kszlim/osu-replay-parser)
 # osrparse, a parser for osu replays in Python
 
-This is a parser for osu! rhythm game replays as described by https://osu.ppy.sh/wiki/Osr_(file_format)
+## Fork Specific
+This fork is designed specifically for [ReplaySBS](https://github.com/Smitty1298/ReplaySBS), and extends the functionality of the upstream repo by allowing parsing of a pure lzma bytestring, instead of the bytestring contents of an entire .osr file. Usage:
+```python
+from osrparse import parse_replay
+
+# returns instance of Replay from an lzma bytestring with only the play_data field nonnull.
+parse_replay(lzma_byte_string, pure_lzma=True)
+```
+
+Note that only information stored in the lzma bytestring is stored in the Replay instance. In all cases, replay_data is the only populated field, because lzma only contains cursor positioning and keyboard presses. For more information, see [the wiki](https://osu.ppy.sh/help/wiki/osu%21_File_Formats/Osr_%28file_format%29).
 
 ## Installation
-To install osrparse, simply:
+To install the upstream osrparse, simply
 ```
 $ pip install osrparse
 ```
+
+To install this osrparse, download the osrparse folder and include it as a module in your project.
 
 ## Documentation
 To parse a replay from a filepath:
@@ -23,7 +34,7 @@ To parse a replay from a bytestring:
 from osrparse import parse_replay
 
 #returns instance of Replay given the replay data encoded as a bytestring
-parse_replay_file(byteString)
+parse_replay(byte_string)
 ```
 Replay instances provide these fields
 ```python
@@ -52,5 +63,5 @@ ReplayEvent instances provide these fields
 self.time_since_previous_action #Integer representing time in milliseconds
 self.x #x axis location
 self.y #y axis location
-self.keys_pressed #bitwise sum of keys pressed, documented in OSR format page.
+self.keys_pressed #bitwise sum of keys pressed, documented in OSR format page
 ```
