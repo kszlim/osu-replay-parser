@@ -18,7 +18,10 @@ To install the upstream osrparse, simply
 $ pip install osrparse
 ```
 
-To install this osrparse, download the osrparse folder and include it as a module in your project.
+To install this osrparse, simply
+```
+$ pip install git+git://github.com/tybug/osu-replay-parser
+```
 
 ## Documentation
 To parse a replay from a filepath:
