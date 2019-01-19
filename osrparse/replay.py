@@ -148,7 +148,7 @@ class Replay(object):
 def parse_replay(replay_data, pure_lzma=False):
     return Replay(replay_data, pure_lzma)
 
-def parse_replay_file(replay_path):
+def parse_replay_file(replay_path, pure_lzma=False):
     with open(replay_path, 'rb') as f:
         data = f.read()
-    return parse_replay(data)
+    return parse_replay(data, pure_lzma)
