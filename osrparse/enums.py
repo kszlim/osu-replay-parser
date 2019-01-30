@@ -12,7 +12,7 @@ class Mod(Enum):
     NoMod          = 0
     NoFail         = 1
     Easy           = 2
-    NoVideo        = 4
+    TouchDevice    = 4
     Hidden         = 8
     HardRock       = 16
     SuddenDeath    = 32
