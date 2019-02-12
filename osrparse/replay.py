@@ -155,13 +155,8 @@ class Replay(object):
         events = [eventstring.split('|') for eventstring in datastring.split(',')]
         self.play_data = [ReplayEvent(int(event[0]), float(event[1]), float(event[2]), int(event[3])) for event in events]
 
-        if(self.game_version >= VERSION_THRESHOLD):
-            if(self.play_data[-1].time_since_previous_action != -12345):
-                raise Exception("The RNG seed value was expected in the last frame, but was not found!"
-                                "Please notify the devs with the following information:"
-                                "\nGame Version: {}, version threshold: {}, replay hash: {}, mode: {}".format(self.game_version, VERSION_THRESHOLD, self.replay_hash, "lzma"))
-            else:
-                del self.play_data[-1]
+        if(self.play_data[-1].time_since_previous_action == -12345):
+            del self.play_data[-1]
 
 def parse_replay(replay_data, pure_lzma=False):
     return Replay(replay_data, pure_lzma)
