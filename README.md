@@ -1,8 +1,7 @@
 [![Build Status](https://travis-ci.org/kszlim/osu-replay-parser.svg?branch=master)](https://travis-ci.org/kszlim/osu-replay-parser)
-# osrparse, a parser for osu replays in Python
+# osrparse, a .osr and lzma parser
 
-## Fork Specific
-This fork is designed specifically for [ReplaySBS](https://github.com/Smitty1298/ReplaySBS), and extends the functionality of the upstream repo by allowing parsing of a pure lzma bytestring, instead of the bytestring contents of an entire .osr file. Usage:
+This fork is designed specifically for [Circleguard](https://github.com/circleguard/circleguard), and extends the functionality of the upstream repo by allowing parsing of a pure lzma bytestring, instead of the bytestring contents of an entire .osr file. Usage:
 ```python
 from osrparse import parse_replay
 
@@ -10,15 +9,12 @@ from osrparse import parse_replay
 parse_replay(lzma_byte_string, pure_lzma=True)
 ```
 
-Note that only information stored in the lzma bytestring is stored in the Replay instance. In all cases, replay_data is the only populated field, because lzma only contains cursor positioning and keyboard presses. For more information, see [the wiki](https://osu.ppy.sh/help/wiki/osu%21_File_Formats/Osr_%28file_format%29).
+Note that only information stored in the lzma bytestring is stored in the Replay instance. When pure_lzma is true, replay_data is the only populated field because lzma only contains cursor positioning and key presses. For more information, see [the wiki](https://osu.ppy.sh/help/wiki/osu%21_File_Formats/Osr_%28file_format%29).
 
 ## Installation
-To install the upstream osrparse, simply
-```
-$ pip install osrparse
-```
 
-To install this osrparse, simply
+To install, simply
+
 ```
 $ pip install git+git://github.com/tybug/osu-replay-parser
 ```
@@ -29,7 +25,7 @@ To parse a replay from a filepath:
 from osrparse import parse_replay_file
 
 #returns instance of Replay
-parse_replay_file("path_to_osr.osr")
+parse_replay_file("path/to/osr.osr")
 ```
 
 To parse a replay from a bytestring:
