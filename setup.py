@@ -1,7 +1,7 @@
 from distutils.core import setup
 from setuptools import find_packages
 
-version = '3.2.1'
+version = '4.0.0'
 
 setup(
     name = 'osrparse',
