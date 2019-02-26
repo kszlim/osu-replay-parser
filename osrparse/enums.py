@@ -7,7 +7,7 @@ class GameMode(Enum):
     CatchTheBeat = 2
     Osumania = 3
 
-
+# see https://github.com/ppy/osu-api/wiki#mods
 class Mod(Enum):
     NoMod          = 0
     NoFail         = 1
@@ -33,10 +33,12 @@ class Mod(Enum):
     keyMod         = 1015808
     FadeIn         = 1048576
     Random         = 2097152
-    LastMod        = 4194304
-    TargetPractice = 8388608
+    Cinema         = 4194304
+    Target         = 8388608
     Key9           = 16777216
-    Coop           = 33554432
+    KeyCoop        = 33554432
     Key1           = 67108864
     Key3           = 134217728
     Key2           = 268435456
+    ScoreV2        = 536870912
+    LastMod        = 1073741824
