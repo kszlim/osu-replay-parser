@@ -144,7 +144,7 @@ class Replay(object):
 
         if(self.game_version >= VERSION_THRESHOLD):
             if(self.play_data[-1].time_since_previous_action != -12345):
-                raise Exception("The RNG seed value was expected in the last frame, but was not found!"
+                print("The RNG seed value was expected in the last frame, but was not found!"
                                 "Please notify the devs with the following information:"
                                 "\nGame Version: {}, version threshold: {}, replay hash: {}, mode: {}".format(self.game_version, VERSION_THRESHOLD, self.replay_hash, "osr"))
             else:
