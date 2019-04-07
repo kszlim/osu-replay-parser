@@ -39,6 +39,7 @@ class Replay(object):
         self.life_bar_graph = None
         self.timestamp = None
         self.play_data = None
+        self.replay_id = None
         self.parse_replay_and_initialize_fields(replay_data, pure_lzma)
 
     def parse_replay_and_initialize_fields(self, replay_data, pure_lzma):
@@ -53,6 +54,7 @@ class Replay(object):
         self.parse_life_bar_graph(replay_data)
         self.parse_timestamp_and_replay_length(replay_data)
         self.parse_play_data(replay_data)
+        self.parse_replay_id(replay_data)
 
     def parse_game_mode_and_version(self, replay_data):
         format_specifier = "<bi"
@@ -157,6 +159,10 @@ class Replay(object):
 
         if(self.play_data[-1].time_since_previous_action == -12345):
             del self.play_data[-1]
+
+    def parse_replay_id(self, replay_data):
+        format_specifier = "<q"
+        self.replay_id = struct.unpack_from(format_specifier, replay_data, self.offset)
 
 def parse_replay(replay_data, pure_lzma=False):
     return Replay(replay_data, pure_lzma)
