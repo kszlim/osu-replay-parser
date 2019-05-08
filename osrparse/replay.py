@@ -1,4 +1,4 @@
-from .enums import GameMode, Mod
+from osrparse.enums import GameMode
 import lzma, struct, datetime
 
 # the first build with rng seed value added as the last frame in the lzma data.
@@ -65,25 +65,10 @@ class Replay(object):
     def unpack_game_stats(self, game_stats):
         self.number_300s, self.number_100s, self.number_50s, self.gekis, self.katus, self.misses, self.score, self.max_combo, self.is_perfect_combo, self.mod_combination = game_stats
 
-    def parse_mod_combination(self):
-        # Generator yielding value of each bit in an integer if it's set + value
-        # of LSB no matter what .
-        def bits(n):
-            if n == 0:
-                yield 0
-            while n:
-                b = n & (~n+1)
-                yield b
-                n ^= b
-
-        bit_values_gen = bits(self.mod_combination)
-        self.mod_combination = frozenset(Mod(mod_val) for mod_val in bit_values_gen)
-
     def parse_score_stats(self, replay_data):
         format_specifier = "<hhhhhhih?i"
         data = struct.unpack_from(format_specifier, replay_data, self.offset)
         self.unpack_game_stats(data)
-        self.parse_mod_combination()
         self.offset += struct.calcsize(format_specifier)
 
     @staticmethod
