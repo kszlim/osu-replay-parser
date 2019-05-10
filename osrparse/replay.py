@@ -18,8 +18,7 @@ class Replay(object):
     __INT = 4
     __LONG = 8
 
-    #Order of field initilization matters.
-    def __init__(self, replay_data, pure_lzma=False):
+    def __init__(self, replay_data, pure_lzma):
         self.offset = 0
         self.game_mode = None
         self.game_version = None
@@ -149,10 +148,38 @@ class Replay(object):
         format_specifier = "<q"
         self.replay_id = struct.unpack_from(format_specifier, replay_data, self.offset)
 
-def parse_replay(replay_data, pure_lzma=False):
+def parse_replay(replay_data, pure_lzma):
+    """
+    Parses a Replay from the given replay data.
+
+    Args:
+        String replay_data: The replay data from either parsing an osr file or from the api get_replay endpoint.
+        Boolean pure_lzma: Whether replay_data conatins the entirety of an osr file, or only the lzma compressed
+                           data containing the cursor movements and keyboard presses of the player.
+                           If replay data was loaded from an osr, this value should be False, as an osr contains
+                           more information than just the lzma, such as username and game version (see
+                           https://osu.ppy.sh/help/wiki/osu!_File_Formats/Osr_(file_format)). If replay data
+                           was retrieved from the api, this value should be True, as the api only
+                           returns the lzma data (see https://github.com/ppy/osu-api/wiki#apiget_replay)
+    Returns:
+        A Replay object with the fields specific in the Replay's init method. If pure_lzma is False, all fields will
+        be filled (nonnull). If pure_lzma is True, only the play_data will be filled.
+    """
+
     return Replay(replay_data, pure_lzma)
 
 def parse_replay_file(replay_path, pure_lzma=False):
+    """
+    Parses a Replay from the file at the given path.
+
+    Args:
+        [String or Path]: A pathlike object representing the absolute path to the file to parse data from.
+        Boolean pure_lzma: False if the file contains data equivalent to an osr file (or is itself an osr file),
+                           and True if the file contains only lzma data. See parse_replay documentation for
+                           more information on the difference between these two and how each affect the
+                           fields in the final Replay object.
+    """
+
     with open(replay_path, 'rb') as f:
         data = f.read()
     return parse_replay(data, pure_lzma)
