@@ -100,7 +100,11 @@ class Replay(object):
 
     def parse_string(self, replay_data):
         if replay_data[self.offset] == 0x00:
+            begin = self.offset = self.offset + Replay.__BYTE
+            while replay_data[self.offset] != 0x00: 
+                self.offset += Replay.__BYTE
             self.offset += Replay.__BYTE
+            return replay_data[begin : self.offset-2].decode("utf-8")
         elif replay_data[self.offset] == 0x0b:
             self.offset += Replay.__BYTE
             string_length = self.__decode(replay_data)
