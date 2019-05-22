@@ -40,3 +40,4 @@ class Mod(Enum):
     Key1           = 67108864
     Key3           = 134217728
     Key2           = 268435456
+    ScoreV2        = 536870912
