@@ -1,7 +1,7 @@
-[![Build Status](https://travis-ci.org/kszlim/osu-replay-parser.svg?branch=master)](https://travis-ci.org/kszlim/osu-replay-parser)
 # osrparse, a .osr and lzma parser
 
-This fork is designed specifically for [Circleguard](https://github.com/circleguard/circleguard), and extends the functionality of the upstream repo by allowing parsing of a pure lzma bytestring, instead of the bytestring contents of an entire .osr file. Usage:
+This fork is designed specifically for [Circlecore](https://github.com/circleguard/circlecore), and extends the functionality of the upstream repo by allowing parsing of a pure lzma bytestring, instead of the bytestring contents of an entire .osr file. Usage:
+
 ```python
 from osrparse import parse_replay
 
@@ -15,12 +15,14 @@ Note that only information stored in the lzma bytestring is stored in the Replay
 
 To install, simply
 
-```
-$ pip install git+git://github.com/tybug/osu-replay-parser
+```sh
+pip install git+git://github.com/tybug/osu-replay-parser
 ```
 
 ## Documentation
+
 To parse a replay from a filepath:
+
 ```python
 from osrparse import parse_replay_file
 
@@ -29,13 +31,16 @@ parse_replay_file("path/to/osr.osr")
 ```
 
 To parse a replay from a bytestring:
+
 ```python
 from osrparse import parse_replay
 
 #returns instance of Replay given the replay data encoded as a bytestring
 parse_replay(byte_string)
 ```
+
 Replay instances provide these fields
+
 ```python
 self.game_mode #GameMode enum
 self.game_version #Integer
@@ -58,6 +63,7 @@ self.play_data #List of ReplayEvent instances
 ```
 
 ReplayEvent instances provide these fields
+
 ```python
 self.time_since_previous_action #Integer representing time in milliseconds
 self.x #x axis location
