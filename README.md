@@ -16,7 +16,7 @@ Note that only information stored in the lzma bytestring is stored in the Replay
 To install, simply
 
 ```sh
-pip install git+git://github.com/tybug/osu-replay-parser
+pip install circleparse
 ```
 
 ## Documentation
