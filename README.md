@@ -1,9 +1,9 @@
-# osrparse, a .osr and lzma parser
+# circleparse, a .osr and lzma parser
 
 This fork is designed specifically for [Circlecore](https://github.com/circleguard/circlecore), and extends the functionality of the upstream repo by allowing parsing of a pure lzma bytestring, instead of the bytestring contents of an entire .osr file. Usage:
 
 ```python
-from osrparse import parse_replay
+from circleparse import parse_replay
 
 # returns instance of Replay from an lzma bytestring with only the play_data field nonnull.
 parse_replay(lzma_byte_string, pure_lzma=True)
