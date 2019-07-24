@@ -1,6 +1,6 @@
 from distutils.core import setup
 from setuptools import find_packages
-from osrparse.__init__ import __version__
+from circleparse.__init__ import __version__
 
 with open("README.md", "r") as f:
     long_description = f.read()

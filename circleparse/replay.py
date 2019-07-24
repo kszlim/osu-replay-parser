@@ -1,5 +1,8 @@
-from osrparse.enums import GameMode
-import lzma, struct, datetime
+import lzma
+import struct
+import datetime
+
+from circleparse.enums import GameMode
 
 # the first build with rng seed value added as the last frame in the lzma data.
 VERSION_THRESHOLD = 20130319

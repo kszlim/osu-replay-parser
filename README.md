@@ -24,7 +24,7 @@ pip install circleparse
 To parse a replay from a filepath:
 
 ```python
-from osrparse import parse_replay_file
+from circleparse import parse_replay_file
 
 #returns instance of Replay
 parse_replay_file("path/to/osr.osr")
@@ -33,7 +33,7 @@ parse_replay_file("path/to/osr.osr")
 To parse a replay from a bytestring:
 
 ```python
-from osrparse import parse_replay
+from circleparse import parse_replay
 
 #returns instance of Replay given the replay data encoded as a bytestring
 parse_replay(byte_string)
