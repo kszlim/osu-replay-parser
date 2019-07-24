@@ -22,7 +22,7 @@ setup(
     author = "Liam DeVoe",
     author_email = "orionldevoe@gmail.com",
     url = "https://github.com/circleguard/circleparse",
-    download_url = "https://github.com/circleguard/circleparse/tarball/" + __version__,
+    download_url = "https://github.com/circleguard/circleparse/tarball/v" + __version__,
     license = "MIT",
     test_suite="tests",
     packages = find_packages()
