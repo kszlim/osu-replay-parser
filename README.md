@@ -1,3 +1,6 @@
+
+[![PyPi version](https://badge.fury.io/py/circleparse.svg)](https://pypi.org/project/circleparse/)
+
 # circleparse, a .osr and lzma parser
 
 This fork is designed specifically for [Circlecore](https://github.com/circleguard/circlecore), and extends the functionality of the upstream repo by allowing parsing of a pure lzma bytestring, instead of the bytestring contents of an entire .osr file. Usage:
