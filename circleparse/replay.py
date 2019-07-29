@@ -149,7 +149,8 @@ class Replay(object):
 
     def parse_replay_id(self, replay_data):
         format_specifier = "<q"
-        self.replay_id = struct.unpack_from(format_specifier, replay_data, self.offset)
+        # unpacks to tuple with one element by default
+        self.replay_id = struct.unpack_from(format_specifier, replay_data, self.offset)[0]
 
 def parse_replay(replay_data, pure_lzma):
     """
