@@ -1,3 +1,3 @@
 from circleparse.replay import parse_replay_file, parse_replay
 
-__version__ = "5.0.2"
+__version__ = "6.0.0"
