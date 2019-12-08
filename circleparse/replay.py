@@ -1,11 +1,16 @@
 import lzma
 import struct
 import datetime
-
-from circleparse.enums import GameMode
+from enum import Enum
 
 # the first build with rng seed value added as the last frame in the lzma data.
 VERSION_THRESHOLD = 20130319
+
+class GameMode(Enum):
+    STD    = 0
+    TAIKO  = 1
+    CTB    = 2
+    MANIA  = 3
 
 class ReplayEvent(object):
     def __init__(self, time_since_previous_action, x, y, keys_pressed):
@@ -123,7 +128,7 @@ class Replay(object):
 
     def parse_play_data(self, replay_data):
         offset_end = self.offset+self.replay_length
-        if self.game_mode != GameMode.Standard:
+        if self.game_mode != GameMode.STD:
             self.play_data = None
         else:
             datastring = lzma.decompress(replay_data[self.offset:offset_end], format=lzma.FORMAT_AUTO).decode('ascii')[:-1]
