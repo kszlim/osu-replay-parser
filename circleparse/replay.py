@@ -1,11 +1,16 @@
 import lzma
 import struct
 import datetime
-
-from circleparse.enums import GameMode
+from enum import Enum
 
 # the first build with rng seed value added as the last frame in the lzma data.
 VERSION_THRESHOLD = 20130319
+
+class GameMode(Enum):
+    STD    = 0
+    TAIKO  = 1
+    CTB    = 2
+    MANIA  = 3
 
 class ReplayEvent(object):
     def __init__(self, time_since_previous_action, x, y, keys_pressed):
@@ -16,10 +21,10 @@ class ReplayEvent(object):
 
 
 class Replay(object):
-    __BYTE = 1
-    __SHORT = 2
-    __INT = 4
-    __LONG = 8
+    BYTE = 1
+    SHORT = 2
+    INT = 4
+    LONG = 8
 
     def __init__(self, replay_data, pure_lzma):
         self.offset = 0
@@ -74,10 +79,10 @@ class Replay(object):
         self.offset += struct.calcsize(format_specifier)
 
     @staticmethod
-    def __parse_as_int(bytestring):
+    def parse_as_int(bytestring):
         return int.from_bytes(bytestring, byteorder='little')
 
-    def __decode(self, binarystream):
+    def decode(self, binarystream):
         result = 0
         shift = 0
         while True:
@@ -94,10 +99,10 @@ class Replay(object):
 
     def parse_string(self, replay_data):
         if replay_data[self.offset] == 0x00:
-            self.offset += Replay.__BYTE
+            self.offset += Replay.BYTE
         elif replay_data[self.offset] == 0x0b:
-            self.offset += Replay.__BYTE
-            string_length = self.__decode(replay_data)
+            self.offset += Replay.BYTE
+            string_length = self.decode(replay_data)
             offset_end = self.offset + string_length
             string = replay_data[self.offset:offset_end].decode("utf-8")
             self.offset = offset_end
@@ -117,13 +122,13 @@ class Replay(object):
 
     def parse_timestamp_and_replay_length(self, replay_data):
         format_specifier = "<qi"
-        (t, self.__replay_length) = struct.unpack_from(format_specifier, replay_data, self.offset)
+        (t, self.replay_length) = struct.unpack_from(format_specifier, replay_data, self.offset)
         self.timestamp = datetime.datetime.min + datetime.timedelta(microseconds=t/10)
         self.offset += struct.calcsize(format_specifier)
 
     def parse_play_data(self, replay_data):
-        offset_end = self.offset+self.__replay_length
-        if self.game_mode != GameMode.Standard:
+        offset_end = self.offset+self.replay_length
+        if self.game_mode != GameMode.STD:
             self.play_data = None
         else:
             datastring = lzma.decompress(replay_data[self.offset:offset_end], format=lzma.FORMAT_AUTO).decode('ascii')[:-1]
