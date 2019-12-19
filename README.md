@@ -29,7 +29,7 @@ parse_replay(byteString)
 To check for a gamemode:
 ```python
 from osrparse.enums import GameMode
-if replay.game_mode is not GameMode.Standard:
+if replay.game_mode is GameMode.Standard:
   print("This is GameMode Standard indeed!")
 ```
 
