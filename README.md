@@ -23,8 +23,16 @@ To parse a replay from a bytestring:
 from osrparse import parse_replay
 
 #returns instance of Replay given the replay data encoded as a bytestring
-parse_replay_file(byteString)
+parse_replay(byteString)
 ```
+
+To check for a gamemode:
+```python
+from osrparse.enums import GameMode
+if replay.game_mode is GameMode.Standard:
+  print("This is GameMode Standard indeed!")
+```
+
 Replay instances provide these fields
 ```python
 self.game_mode #GameMode enum
