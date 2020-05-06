@@ -26,7 +26,7 @@ class Replay(object):
     INT = 4
     LONG = 8
 
-    def __init__(self, replay_data, pure_lzma):
+    def __init__(self, replay_data, pure_lzma, decompressed_lzma):
         self.offset = 0
         self.game_mode = None
         self.game_version = None
@@ -47,11 +47,11 @@ class Replay(object):
         self.timestamp = None
         self.play_data = None
         self.replay_id = None
-        self.parse_replay_and_initialize_fields(replay_data, pure_lzma)
+        self.parse_replay_and_initialize_fields(replay_data, pure_lzma, decompressed_lzma)
 
-    def parse_replay_and_initialize_fields(self, replay_data, pure_lzma):
-        if(pure_lzma):
-            self.data_from_lmza(replay_data)
+    def parse_replay_and_initialize_fields(self, replay_data, pure_lzma, decompressed_lzma):
+        if pure_lzma:
+            self.data_from_lmza(replay_data, decompressed_lzma)
             return
         self.parse_game_mode_and_version(replay_data)
         self.parse_beatmap_hash(replay_data)
@@ -144,8 +144,13 @@ class Replay(object):
             else:
                 del self.play_data[-1]
 
-    def data_from_lmza(self, lzma_string):
-        datastring = lzma.decompress(lzma_string, format=lzma.FORMAT_AUTO).decode('ascii')[:-1]
+    def data_from_lmza(self, lzma_string, decompressed_lzma):
+        if decompressed_lzma:
+            # replay data is already decompressed and decoded
+            # remove last character (comma) so splitting works, same below
+            datastring = lzma_string[:-1]
+        else:
+            datastring = lzma.decompress(lzma_string, format=lzma.FORMAT_AUTO).decode('ascii')[:-1]
         events = [eventstring.split('|') for eventstring in datastring.split(',')]
         self.play_data = [ReplayEvent(int(event[0]), float(event[1]), float(event[2]), int(event[3])) for event in events]
 
@@ -157,25 +162,36 @@ class Replay(object):
         # unpacks to tuple with one element by default
         self.replay_id = struct.unpack_from(format_specifier, replay_data, self.offset)[0]
 
-def parse_replay(replay_data, pure_lzma):
+def parse_replay(replay_data, pure_lzma, decompressed_lzma=False):
     """
     Parses a Replay from the given replay data.
 
     Args:
         String replay_data: The replay data from either parsing an osr file or from the api get_replay endpoint.
         Boolean pure_lzma: Whether replay_data conatins the entirety of an osr file, or only the lzma compressed
-                           data containing the cursor movements and keyboard presses of the player.
-                           If replay data was loaded from an osr, this value should be False, as an osr contains
-                           more information than just the lzma, such as username and game version (see
-                           https://osu.ppy.sh/help/wiki/osu!_File_Formats/Osr_(file_format)). If replay data
-                           was retrieved from the api, this value should be True, as the api only
-                           returns the lzma data (see https://github.com/ppy/osu-api/wiki#apiget_replay)
+                data containing the cursor movements and keyboard presses of the player.
+                If replay data was loaded from an osr, this value should be False, as an osr contains
+                more information than just the lzma, such as username and game version (see
+                https://osu.ppy.sh/help/wiki/osu!_File_Formats/Osr_(file_format)). If replay data
+                was retrieved from the api, this value should be True, as the api only
+                returns the lzma data (see https://github.com/ppy/osu-api/wiki#apiget_replay)
+        Boolean decompressed_lzma: Whether replay_data is compressed lzma, or decompressed
+                (and decoded to ascii) lzma. For example, the following calls are equivalent:
+                ```
+                >>> circleparse.parse_replay(lzma_string, pure_lzma=True)
+                ```
+                and
+                ```
+                >>> lzma_string = lzma.decompress(lzma_string).decode("ascii")
+                >>> circleparse.parse_replay(lzma_string, pure_lzma=True, decompressed_lzma=True)
+                ```
+                This parameter only has an affect if ``pure_lzma`` is ``True``.
     Returns:
         A Replay object with the fields specific in the Replay's init method. If pure_lzma is False, all fields will
         be filled (nonnull). If pure_lzma is True, only the play_data will be filled.
     """
 
-    return Replay(replay_data, pure_lzma)
+    return Replay(replay_data, pure_lzma, decompressed_lzma)
 
 def parse_replay_file(replay_path, pure_lzma=False):
     """
