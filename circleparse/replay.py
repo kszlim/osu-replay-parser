@@ -147,6 +147,7 @@ class Replay(object):
     def data_from_lmza(self, lzma_string, decompressed_lzma):
         if decompressed_lzma:
             # replay data is already decompressed and decoded
+            # remove last character (comma) so splitting works, same below
             datastring = lzma_string[:-1]
         else:
             datastring = lzma.decompress(lzma_string, format=lzma.FORMAT_AUTO).decode('ascii')[:-1]
