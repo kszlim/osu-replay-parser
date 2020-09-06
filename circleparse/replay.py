@@ -19,6 +19,14 @@ class ReplayEvent(object):
         self.y = y
         self.keys_pressed = keys_pressed
 
+    def __eq__(self, other):
+        if not isinstance(other, ReplayEvent):
+            return False
+        return (self.time_since_previous_action == other.time_since_previous_action
+            and self.x == other.x and self.y == other.y and self.keys_pressed == other.keys_pressed)
+
+    def __hash__(self):
+        return hash((self.time_since_previous_action, self.x, self.y, self.keys_pressed))
 
 class Replay(object):
     BYTE = 1
