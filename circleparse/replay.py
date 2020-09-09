@@ -116,8 +116,8 @@ class Replay(object):
             self.offset = offset_end
             return string
         else:
-            #TODO: Replace with custom exception
-            raise Exception("Invalid replay")
+            raise ValueError("Expected the first byte of a string to be 0x00 "
+                f"or 0x0b, but got {replay_data[self.offset]}")
 
     def parse_beatmap_hash(self, replay_data):
         self.beatmap_hash = self.parse_string(replay_data)
