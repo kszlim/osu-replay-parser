@@ -19,6 +19,9 @@ class ReplayEvent(object):
         self.y = y
         self.keys_pressed = keys_pressed
 
+    def __str__(self):
+        return f"{self.time_since_previous_action} ({self.x}, {self.y}) {self.keys_pressed}"
+
     def __eq__(self, other):
         if not isinstance(other, ReplayEvent):
             return False
