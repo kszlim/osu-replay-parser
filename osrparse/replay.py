@@ -129,12 +129,12 @@ class Replay(object):
 
     def parse_play_data(self, replay_data):
         offset_end = self.offset+self.__replay_length
-        if self.game_mode != GameMode.Standard:
-            self.play_data = None
-        else:
+        if self.game_mode == GameMode.Standard or self.game_mode == GameMode.Taiko:
             datastring = lzma.decompress(replay_data[self.offset:offset_end], format=lzma.FORMAT_AUTO).decode('ascii')[:-1]
             events = [eventstring.split('|') for eventstring in datastring.split(',')]
             self.play_data = [ReplayEvent(int(event[0]), float(event[1]), float(event[2]), int(event[3])) for event in events]
+        else:
+            self.play_data = None
         self.offset = offset_end
 
 def parse_replay(replay_data):
