@@ -1,6 +1,7 @@
 from .enums import GameMode, Mod
 import lzma, struct, datetime
-
+from math import floor
+from numpy import cumsum
 
 class ReplayEvent(object):
     def __init__(self, time_since_previous_action, x, y, keys_pressed):
@@ -9,6 +10,11 @@ class ReplayEvent(object):
         self.y = y
         self.keys_pressed = keys_pressed
 
+class ReplayEventMania(object):
+    def __init__(self, time_since_previous_action, x, keys_pressed):
+        self.time_since_previous_action = time_since_previous_action
+        self.rawcol = '{0:010b}'.format(x)[::-1]
+        self.keys_pressed = keys_pressed
 
 class Replay(object):
     __BYTE = 1
@@ -127,14 +133,28 @@ class Replay(object):
         self.timestamp = datetime.datetime.min + datetime.timedelta(microseconds=t/10)
         self.offset += struct.calcsize(format_specifier)
 
+    def mania_mapping(self, x):
+        rawcol = '{0:010b}'.format(x)[::-1]
+        dict_mapping = {0:False, 1:False, 2:False, \
+                        3:False, 4:False, 5:False, \
+                        6:False, 7:False, 8:False, 9:False}
+        for i in range(10):
+            if rawcol[i] == '1':
+                dict_mapping[i] = True
+        return dict_mapping
+
     def parse_play_data(self, replay_data):
         offset_end = self.offset+self.__replay_length
-        if self.game_mode != GameMode.Standard:
-            self.play_data = None
-        else:
+        if (self.game_mode == GameMode.Standard):
             datastring = lzma.decompress(replay_data[self.offset:offset_end], format=lzma.FORMAT_AUTO).decode('ascii')[:-1]
             events = [eventstring.split('|') for eventstring in datastring.split(',')]
             self.play_data = [ReplayEvent(int(event[0]), float(event[1]), float(event[2]), int(event[3])) for event in events]
+        elif (self.game_mode == GameMode.Osumania):
+            datastring = lzma.decompress(replay_data[self.offset:offset_end], format=lzma.FORMAT_AUTO).decode('ascii')[:-1]
+            events = [eventstring.split('|') for eventstring in datastring.split(',')]
+            self.play_data = [ReplayEventMania(int(event[0]), int(event[1]), self.mania_mapping(int(event[1]))) for event in events]
+        else:
+            raise('Replay not in standard or mania')
         self.offset = offset_end
 
 def parse_replay(replay_data):
