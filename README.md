@@ -33,7 +33,7 @@ if replay.game_mode is GameMode.Standard:
   print("This is GameMode Standard indeed!")
 ```
 
-Replay instances provide these fields
+Replay instances provide these fields (Both instances)
 ```python
 self.game_mode #GameMode enum
 self.game_version #Integer
@@ -61,4 +61,13 @@ self.time_since_previous_action #Integer representing time in milliseconds
 self.x #x axis location
 self.y #y axis location
 self.keys_pressed #bitwise sum of keys pressed, documented in OSR format page.
+```
+
+On the other hand, ReplayEventMania instances have similar features on ReplayEvent but differ on a few things
+```python
+self.time_since_previous_action
+self.rawcol #A binary that represents the columns pressed at a particular time.
+# 0001001 means columns 4 and 7 were pressed
+self.keys_pressed # A dictionary of inputs derived from self.rawcol. Each key represents the column from 0 to 9 while the values contain a boolean that represents if the key is pressed or not
+# There are a total of 10 bits that represents 10 keys. It would output the same number of keys regardless of the beatmap's keymode. (It's just that the unused keys would always output as False)
 ```
