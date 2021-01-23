@@ -1,3 +1,8 @@
-from circleparse.replay import parse_replay_file, parse_replay
+from circleparse.replay import (parse_replay_file, parse_replay, ReplayEvent,
+    GameMode, Mod)
 
 __version__ = "6.4.1"
+
+
+__all__ = ["parse_replay_file", "parse_replay", "ReplayEvent", "GameMode",
+    "Mod"]
