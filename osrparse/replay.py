@@ -67,10 +67,10 @@ class ReplayEvent(object):
         return hash((self.time_since_previous_action, self.x, self.y, self.keys_pressed))
 
 class Replay(object):
-    BYTE = 1
-    SHORT = 2
-    INT = 4
-    LONG = 8
+    _BYTE = 1
+    _SHORT = 2
+    _INT = 4
+    _LONG = 8
 
     def __init__(self, replay_data, pure_lzma, decompressed_lzma):
         self.offset = 0
@@ -93,42 +93,42 @@ class Replay(object):
         self.timestamp = None
         self.play_data = None
         self.replay_id = None
-        self.parse_replay_and_initialize_fields(replay_data, pure_lzma, decompressed_lzma)
+        self._parse_replay_and_initialize_fields(replay_data, pure_lzma, decompressed_lzma)
 
-    def parse_replay_and_initialize_fields(self, replay_data, pure_lzma, decompressed_lzma):
+    def _parse_replay_and_initialize_fields(self, replay_data, pure_lzma, decompressed_lzma):
         if pure_lzma:
             self.data_from_lmza(replay_data, decompressed_lzma)
             return
-        self.parse_game_mode_and_version(replay_data)
-        self.parse_beatmap_hash(replay_data)
-        self.parse_player_name(replay_data)
-        self.parse_replay_hash(replay_data)
-        self.parse_score_stats(replay_data)
-        self.parse_life_bar_graph(replay_data)
-        self.parse_timestamp_and_replay_length(replay_data)
-        self.parse_play_data(replay_data)
-        self.parse_replay_id(replay_data)
+        self._parse_game_mode_and_version(replay_data)
+        self._parse_beatmap_hash(replay_data)
+        self._parse_player_name(replay_data)
+        self._parse_replay_hash(replay_data)
+        self._parse_score_stats(replay_data)
+        self._parse_life_bar_graph(replay_data)
+        self._parse_timestamp_and_replay_length(replay_data)
+        self._parse_play_data(replay_data)
+        self._parse_replay_id(replay_data)
 
-    def parse_game_mode_and_version(self, replay_data):
+    def _parse_game_mode_and_version(self, replay_data):
         format_specifier = "<bi"
         data = struct.unpack_from(format_specifier, replay_data, self.offset)
         self.offset += struct.calcsize(format_specifier)
         self.game_mode, self.game_version = (GameMode(data[0]), data[1])
 
-    def unpack_game_stats(self, game_stats):
+    def _unpack_game_stats(self, game_stats):
         (self.number_300s, self.number_100s, self.number_50s, self.gekis,
          self.katus, self.misses, self.score, self.max_combo,
          self.is_perfect_combo, mod_combination) = game_stats
 
         self.mod_combination = Mod(mod_combination)
 
-    def parse_score_stats(self, replay_data):
+    def _parse_score_stats(self, replay_data):
         format_specifier = "<hhhhhhih?i"
         data = struct.unpack_from(format_specifier, replay_data, self.offset)
-        self.unpack_game_stats(data)
+        self._unpack_game_stats(data)
         self.offset += struct.calcsize(format_specifier)
 
-    def decode(self, binarystream):
+    def _decode(self, binarystream):
         result = 0
         shift = 0
         while True:
@@ -140,15 +140,15 @@ class Replay(object):
             shift += 7
         return result
 
-    def parse_player_name(self, replay_data):
-        self.player_name = self.parse_string(replay_data)
+    def _parse_player_name(self, replay_data):
+        self.player_name = self._parse_string(replay_data)
 
-    def parse_string(self, replay_data):
+    def _parse_string(self, replay_data):
         if replay_data[self.offset] == 0x00:
-            self.offset += Replay.BYTE
+            self.offset += Replay._BYTE
         elif replay_data[self.offset] == 0x0b:
-            self.offset += Replay.BYTE
-            string_length = self.decode(replay_data)
+            self.offset += Replay._BYTE
+            string_length = self._decode(replay_data)
             offset_end = self.offset + string_length
             string = replay_data[self.offset:offset_end].decode("utf-8")
             self.offset = offset_end
@@ -157,22 +157,22 @@ class Replay(object):
             raise ValueError("Expected the first byte of a string to be 0x00 "
                 f"or 0x0b, but got {replay_data[self.offset]}")
 
-    def parse_beatmap_hash(self, replay_data):
-        self.beatmap_hash = self.parse_string(replay_data)
+    def _parse_beatmap_hash(self, replay_data):
+        self.beatmap_hash = self._parse_string(replay_data)
 
-    def parse_replay_hash(self, replay_data):
-        self.replay_hash = self.parse_string(replay_data)
+    def _parse_replay_hash(self, replay_data):
+        self.replay_hash = self._parse_string(replay_data)
 
-    def parse_life_bar_graph(self, replay_data):
-        self.life_bar_graph = self.parse_string(replay_data)
+    def _parse_life_bar_graph(self, replay_data):
+        self.life_bar_graph = self._parse_string(replay_data)
 
-    def parse_timestamp_and_replay_length(self, replay_data):
+    def _parse_timestamp_and_replay_length(self, replay_data):
         format_specifier = "<qi"
         (t, self.replay_length) = struct.unpack_from(format_specifier, replay_data, self.offset)
         self.timestamp = datetime.datetime.min + datetime.timedelta(microseconds=t/10)
         self.offset += struct.calcsize(format_specifier)
 
-    def parse_play_data(self, replay_data):
+    def _parse_play_data(self, replay_data):
         offset_end = self.offset+self.replay_length
         if self.game_mode != GameMode.STD:
             self.play_data = None
@@ -202,7 +202,7 @@ class Replay(object):
         if self.play_data[-1].time_since_previous_action == -12345:
             del self.play_data[-1]
 
-    def parse_replay_id(self, replay_data):
+    def _parse_replay_id(self, replay_data):
         format_specifier = "<q"
         self.replay_id = struct.unpack_from(format_specifier, replay_data, self.offset)[0]
 
