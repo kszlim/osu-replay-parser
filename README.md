@@ -1,6 +1,9 @@
 [![PyPi version](https://badge.fury.io/py/osrparse.svg)](https://pypi.org/project/osrparse/)
+[![Build Status](https://travis-ci.org/kszlim/osrparse.svg?branch=master)](https://travis-ci.org/kszlim/osrparse)
 
-# osrparse, a .osr and lzma parser
+# osrparse, a python parser for osu! replays
+
+This is a parser for osu! replay files (.osr) as described by <https://osu.ppy.sh/wiki/en/osu%21_File_Formats/Osr_%28file_format%29>.
 
 ## Installation
 
@@ -30,7 +33,7 @@ from circleparse import parse_replay
 parse_replay(lzma_string, pure_lzma=True)
 ```
 
-Note that if you use the `/get_replay` endpoint to retrieve a replay, you must decode it before passing it to osrparse, as it is b64 encoded by default.
+Note that if you use the `/get_replay` endpoint to retrieve a replay, you must decode the response before passing it to osrparse, as the response is encoded in base 64 by default.
 
 Replay objects provide the following fields:
 
