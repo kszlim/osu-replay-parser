@@ -1,12 +1,12 @@
 from distutils.core import setup
 from setuptools import find_packages
-from circleparse.__init__ import __version__
+from osrparse import __version__
 
 with open("README.md", "r") as f:
     long_description = f.read()
 
 setup(
-    name = "circleparse",
+    name = "osrparse",
     version = __version__,
     description = "Parser for osr files and lzma replay streams for osu!",
     long_description=long_description,
@@ -19,10 +19,10 @@ setup(
         "Programming Language :: Python :: 3"
     ],
     keywords = ["osu!, osr, replay, replays, parsing, parser, python"],
-    author = "Liam DeVoe",
-    author_email = "orionldevoe@gmail.com",
-    url = "https://github.com/circleguard/circleparse",
-    download_url = "https://github.com/circleguard/circleparse/tarball/v" + __version__,
+    author = "Kevin Lim, Liam DeVoe",
+    author_email = "kszlim@gmail.com, orionldevoe@gmail.com",
+    url = "https://github.com/kszlim/osrparse",
+    download_url = "https://github.com/kszlim/osrparse/tarball/v" + __version__,
     license = "MIT",
     test_suite="tests",
     packages = find_packages()

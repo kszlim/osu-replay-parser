@@ -206,7 +206,7 @@ class Replay(object):
         format_specifier = "<q"
         self.replay_id = struct.unpack_from(format_specifier, replay_data, self.offset)[0]
 
-def parse_replay(replay_data, pure_lzma, decompressed_lzma=False):
+def parse_replay(replay_data, pure_lzma=False, decompressed_lzma=False):
     """
     Parses a Replay from the given replay data.
 
@@ -222,12 +222,12 @@ def parse_replay(replay_data, pure_lzma, decompressed_lzma=False):
         Boolean decompressed_lzma: Whether replay_data is compressed lzma, or decompressed
                 (and decoded to ascii) lzma. For example, the following calls are equivalent:
                 ```
-                >>> circleparse.parse_replay(lzma_string, pure_lzma=True)
+                >>> osrparse.parse_replay(lzma_string, pure_lzma=True)
                 ```
                 and
                 ```
                 >>> lzma_string = lzma.decompress(lzma_string).decode("ascii")
-                >>> circleparse.parse_replay(lzma_string, pure_lzma=True, decompressed_lzma=True)
+                >>> osrparse.parse_replay(lzma_string, pure_lzma=True, decompressed_lzma=True)
                 ```
                 This parameter only has an affect if ``pure_lzma`` is ``True``.
     Returns:

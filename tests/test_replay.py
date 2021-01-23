@@ -1,7 +1,7 @@
 from pathlib import Path
 from unittest import TestCase
 import datetime
-from circleparse import parse_replay, parse_replay_file, ReplayEvent, GameMode, Mod
+from osrparse import parse_replay, parse_replay_file, ReplayEvent, GameMode, Mod
 
 RES = Path(__file__).parent / "resources"
 
