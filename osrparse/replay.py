@@ -1,14 +1,15 @@
 import lzma
 import struct
 import datetime
+from typing import List
 
 from osrparse.enums import Mod, GameMode
 
 # the first build with rng seed value added as the last frame in the lzma data.
 VERSION_THRESHOLD = 20130319
 
-class ReplayEvent(object):
-    def __init__(self, time_since_previous_action, x, y, keys_pressed):
+class ReplayEvent():
+    def __init__(self, time_since_previous_action: int, x: float, y: float, keys_pressed: int):
         self.time_since_previous_action = time_since_previous_action
         self.x = x
         self.y = y
@@ -26,13 +27,13 @@ class ReplayEvent(object):
     def __hash__(self):
         return hash((self.time_since_previous_action, self.x, self.y, self.keys_pressed))
 
-class Replay(object):
+class Replay():
     _BYTE = 1
     _SHORT = 2
     _INT = 4
     _LONG = 8
 
-    def __init__(self, replay_data, pure_lzma, decompressed_lzma):
+    def __init__(self, replay_data: List[ReplayEvent], pure_lzma: bool, decompressed_lzma: bool):
         self.offset = 0
         self.game_mode = None
         self.game_version = None

@@ -1,6 +1,9 @@
+import os
+from typing import Union
+
 from osrparse.replay import Replay
 
-def parse_replay(replay_data, pure_lzma=False, decompressed_lzma=False):
+def parse_replay(replay_data: str, pure_lzma: bool = False, decompressed_lzma: bool = False) -> Replay:
     """
     Parses a Replay from the given replay data.
 
@@ -31,7 +34,7 @@ def parse_replay(replay_data, pure_lzma=False, decompressed_lzma=False):
 
     return Replay(replay_data, pure_lzma, decompressed_lzma)
 
-def parse_replay_file(replay_path, pure_lzma=False):
+def parse_replay_file(replay_path: Union[os.PathLike, str], pure_lzma: bool = False) -> Replay:
     """
     Parses a Replay from the file at the given path.
 
