@@ -1,25 +1,13 @@
+[![PyPi version](https://badge.fury.io/py/osrparse.svg)](https://pypi.org/project/osrparse/)
 
-[![PyPi version](https://badge.fury.io/py/circleparse.svg)](https://pypi.org/project/circleparse/)
-
-# circleparse, a .osr and lzma parser
-
-This fork is designed specifically for [Circlecore](https://github.com/circleguard/circlecore), and extends the functionality of the upstream repo by allowing parsing of a pure lzma bytestring, instead of the bytestring contents of an entire .osr file. Usage:
-
-```python
-from circleparse import parse_replay
-
-# returns instance of Replay from an lzma bytestring with only the play_data field nonnull.
-parse_replay(lzma_byte_string, pure_lzma=True)
-```
-
-Note that only information stored in the lzma bytestring is stored in the Replay instance. When pure_lzma is true, replay_data is the only populated field because lzma only contains cursor positioning and key presses. For more information, see [the wiki](https://osu.ppy.sh/help/wiki/osu%21_File_Formats/Osr_%28file_format%29).
+# osrparse, a .osr and lzma parser
 
 ## Installation
 
 To install, simply
 
 ```sh
-pip install circleparse
+pip install osrparse
 ```
 
 ## Documentation
@@ -27,49 +15,51 @@ pip install circleparse
 To parse a replay from a filepath:
 
 ```python
-from circleparse import parse_replay_file
+from osrparse import parse_replay_file
 
-#returns instance of Replay
+# returns a Replay object
 parse_replay_file("path/to/osr.osr")
 ```
 
-To parse a replay from a bytestring:
+To parse a replay from an lzma string (such as the one returned from the `/get_replay` osu! api endpoint):
 
 ```python
 from circleparse import parse_replay
 
-#returns instance of Replay given the replay data encoded as a bytestring
-parse_replay(byte_string)
+# returns a Replay object that only has a `play_data` attribute
+parse_replay(lzma_string, pure_lzma=True)
 ```
 
-Replay instances provide these fields
+Note that if you use the `/get_replay` endpoint to retrieve a replay, you must decode it before passing it to osrparse, as it is b64 encoded by default.
+
+Replay objects provide the following fields:
 
 ```python
-self.game_mode #GameMode enum
-self.game_version #Integer
-self.beatmap_hash #String
-self.player_name #String
-self.replay_hash #String
-self.number_300s #Integer
-self.number_100s #Integer
-self.number_50s #Integer
-self.gekis #Integer
-self.katus #Integer
-self.misses #Integer
-self.score #Integer
-self.max_combo #Integer
-self.is_perfect_combo #Boolean
-self.mod_combination #frozenset of Mods
-self.life_bar_graph #String, unparsed as of now
-self.timestamp #Python Datetime object
-self.play_data #List of ReplayEvent instances
+self.game_mode # GameMode enum
+self.game_version # int
+self.beatmap_hash # str
+self.player_name # str
+self.replay_hash # str
+self.number_300s # int
+self.number_100s # int
+self.number_50s # int
+self.gekis # int
+self.katus # int
+self.misses # int
+self.score # int
+self.max_combo # int
+self.is_perfect_combo # bool
+self.mod_combination # Mod enum
+self.life_bar_graph # str, currently unparsed
+self.timestamp # datetime.datetime object
+self.play_data # list[ReplayEvent]
 ```
 
-ReplayEvent instances provide these fields
+ReplayEvent objects provide the following fields:
 
 ```python
-self.time_since_previous_action #Integer representing time in milliseconds
-self.x #x axis location
-self.y #y axis location
-self.keys_pressed #bitwise sum of keys pressed, documented in OSR format page
+self.time_since_previous_action # int (in milliseconds)
+self.x # x axis location
+self.y # y axis location
+self.keys_pressed # bitwise sum of keys pressed, documented in OSR format page
 ```
