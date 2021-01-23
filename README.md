@@ -1,5 +1,5 @@
 [![PyPi version](https://badge.fury.io/py/osrparse.svg)](https://pypi.org/project/osrparse/)
-[![Build Status](https://travis-ci.org/kszlim/osrparse.svg?branch=master)](https://travis-ci.org/kszlim/osrparse)
+[![Build Status](https://travis-ci.org/kszlim/osu-replay-parse.svg?branch=master)](https://travis-ci.org/kszlim/osu-replay-parser)
 
 # osrparse, a python parser for osu! replays
 

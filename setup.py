@@ -21,8 +21,8 @@ setup(
     keywords = ["osu!, osr, replay, replays, parsing, parser, python"],
     author = "Kevin Lim, Liam DeVoe",
     author_email = "kszlim@gmail.com, orionldevoe@gmail.com",
-    url = "https://github.com/kszlim/osrparse",
-    download_url = "https://github.com/kszlim/osrparse/tarball/v" + __version__,
+    url = "https://github.com/kszlim/osu-replay-parser",
+    download_url = "https://github.com/kszlim/osu-replay-parser/tarball/v" + __version__,
     license = "MIT",
     test_suite="tests",
     packages = find_packages()
