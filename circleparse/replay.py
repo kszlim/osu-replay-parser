@@ -1,7 +1,7 @@
 import lzma
 import struct
 import datetime
-from enum import Enum
+from enum import Enum, IntFlag
 
 # the first build with rng seed value added as the last frame in the lzma data.
 VERSION_THRESHOLD = 20130319
@@ -11,6 +11,41 @@ class GameMode(Enum):
     TAIKO  = 1
     CTB    = 2
     MANIA  = 3
+
+class Mod(IntFlag):
+	NoMod       =  0,
+	NoFail      =  1 << 0,
+	Easy        =  1 << 1,
+	TouchDevice =  1 << 2,
+	Hidden      =  1 << 3,
+	HardRock    =  1 << 4,
+	SuddenDeath =  1 << 5,
+	DoubleTime  =  1 << 6,
+	Relax       =  1 << 7,
+	HalfTime    =  1 << 8,
+	Nightcore   =  1 << 9,
+	Flashlight  =  1 << 10,
+	Autoplay    =  1 << 11,
+	SpunOut     =  1 << 12,
+	Autopilot   =  1 << 13,
+	Perfect     =  1 << 14,
+	Key4        =  1 << 15,
+	Key5        =  1 << 16,
+	Key6        =  1 << 17,
+	Key7        =  1 << 18,
+	Key8        =  1 << 19,
+	FadeIn      =  1 << 20,
+	Random      =  1 << 21,
+	Cinema      =  1 << 22,
+	Target      =  1 << 23,
+	Key9        =  1 << 24,
+	KeyCoop     =  1 << 25,
+	Key1        =  1 << 26,
+	Key3        =  1 << 27,
+	Key2        =  1 << 28,
+	ScoreV2     =  1 << 29,
+	Mirror      =  1 << 30
+
 
 class ReplayEvent(object):
     def __init__(self, time_since_previous_action, x, y, keys_pressed):
@@ -81,7 +116,11 @@ class Replay(object):
         self.game_mode, self.game_version = (GameMode(data[0]), data[1])
 
     def unpack_game_stats(self, game_stats):
-        self.number_300s, self.number_100s, self.number_50s, self.gekis, self.katus, self.misses, self.score, self.max_combo, self.is_perfect_combo, self.mod_combination = game_stats
+        (self.number_300s, self.number_100s, self.number_50s, self.gekis,
+         self.katus, self.misses, self.score, self.max_combo,
+         self.is_perfect_combo, mod_combination) = game_stats
+
+        self.mod_combination = Mod(mod_combination)
 
     def parse_score_stats(self, replay_data):
         format_specifier = "<hhhhhhih?i"
