@@ -89,10 +89,6 @@ class Replay(object):
         self.unpack_game_stats(data)
         self.offset += struct.calcsize(format_specifier)
 
-    @staticmethod
-    def parse_as_int(bytestring):
-        return int.from_bytes(bytestring, byteorder='little')
-
     def decode(self, binarystream):
         result = 0
         shift = 0
