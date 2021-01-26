@@ -27,7 +27,7 @@ parse_replay_file("path/to/osr.osr")
 To parse a replay from an lzma string (such as the one returned from the `/get_replay` osu! api endpoint):
 
 ```python
-from circleparse import parse_replay
+from osrparse import parse_replay
 
 # returns a Replay object that only has a `play_data` attribute
 parse_replay(lzma_string, pure_lzma=True)
