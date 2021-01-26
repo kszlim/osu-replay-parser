@@ -1,64 +1,68 @@
-[![Build Status](https://travis-ci.org/kszlim/osu-replay-parser.svg?branch=master)](https://travis-ci.org/kszlim/osu-replay-parser)
-# osrparse, a parser for osu replays in Python
+[![PyPi version](https://badge.fury.io/py/osrparse.svg)](https://pypi.org/project/osrparse/)
+[![Build Status](https://travis-ci.org/kszlim/osu-replay-parse.svg?branch=master)](https://travis-ci.org/kszlim/osu-replay-parser)
 
-This is a parser for osu! rhythm game replays as described by https://osu.ppy.sh/wiki/Osr_(file_format)
+# osrparse, a python parser for osu! replays
+
+This is a parser for osu! replay files (.osr) as described by <https://osu.ppy.sh/wiki/en/osu%21_File_Formats/Osr_%28file_format%29>.
 
 ## Installation
-To install osrparse, simply:
-```
-$ pip install osrparse
+
+To install, simply:
+
+```sh
+pip install osrparse
 ```
 
 ## Documentation
+
 To parse a replay from a filepath:
+
 ```python
 from osrparse import parse_replay_file
 
-#returns instance of Replay
-parse_replay_file("path_to_osr.osr")
+# returns a Replay object
+parse_replay_file("path/to/osr.osr")
 ```
 
-To parse a replay from a bytestring:
+To parse a replay from an lzma string (such as the one returned from the `/get_replay` osu! api endpoint):
+
 ```python
 from osrparse import parse_replay
 
-#returns instance of Replay given the replay data encoded as a bytestring
-parse_replay(byteString)
+# returns a Replay object that only has a `play_data` attribute
+parse_replay(lzma_string, pure_lzma=True)
 ```
 
-To check for a gamemode:
+Note that if you use the `/get_replay` endpoint to retrieve a replay, you must decode the response before passing it to osrparse, as the response is encoded in base 64 by default.
+
+Replay objects provide the following fields:
+
 ```python
-from osrparse.enums import GameMode
-if replay.game_mode is GameMode.Standard:
-  print("This is GameMode Standard indeed!")
+self.game_mode # GameMode enum
+self.game_version # int
+self.beatmap_hash # str
+self.player_name # str
+self.replay_hash # str
+self.number_300s # int
+self.number_100s # int
+self.number_50s # int
+self.gekis # int
+self.katus # int
+self.misses # int
+self.score # int
+self.max_combo # int
+self.is_perfect_combo # bool
+self.mod_combination # Mod enum
+self.life_bar_graph # str, currently unparsed
+self.timestamp # datetime.datetime object
+self.play_data # list[ReplayEvent]
 ```
 
-Replay instances provide these fields
-```python
-self.game_mode #GameMode enum
-self.game_version #Integer
-self.beatmap_hash #String
-self.player_name #String
-self.replay_hash #String
-self.number_300s #Integer
-self.number_100s #Integer
-self.number_50s #Integer
-self.gekis #Integer
-self.katus #Integer
-self.misses #Integer
-self.score #Integer
-self.max_combo #Integer
-self.is_perfect_combo #Boolean
-self.mod_combination #frozenset of Mods
-self.life_bar_graph #String, unparsed as of now
-self.timestamp #Python Datetime object
-self.play_data #List of ReplayEvent instances
-```
+ReplayEvent objects provide the following fields:
 
-ReplayEvent instances provide these fields
 ```python
-self.time_since_previous_action #Integer representing time in milliseconds
-self.x #x axis location
-self.y #y axis location
-self.keys_pressed #bitwise sum of keys pressed, documented in OSR format page.
+self.time_since_previous_action # int (in milliseconds)
+self.x # x axis location
+self.y # y axis location
+self.keys_pressed # bitwise sum of keys pressed, documented in OSR format page
 ```

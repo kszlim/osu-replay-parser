@@ -1,20 +1,24 @@
-import unittest, datetime
-from osrparse.replay import parse_replay, parse_replay_file, ReplayEvent
-from osrparse.enums import GameMode, Mod
+from pathlib import Path
+from unittest import TestCase
+import datetime
+from osrparse import parse_replay, parse_replay_file, ReplayEvent, GameMode, Mod
 
+RES = Path(__file__).parent / "resources"
 
-class TestStandardReplay(unittest.TestCase):
+class TestStandardReplay(TestCase):
 
     @classmethod
     def setUpClass(cls):
-        with open('tests/resources/replay.osr', 'rb') as f:
+
+        replay1_path =  RES / "replay.osr"
+        with open(replay1_path, "rb") as f:
             data = f.read()
-        cls._replays = [parse_replay(data), parse_replay_file('tests/resources/replay.osr')]
-        cls._combination_replay = parse_replay_file('tests/resources/replay2.osr')
+        cls._replays = [parse_replay(data, pure_lzma=False), parse_replay_file(replay1_path)]
+        cls._combination_replay = parse_replay_file(RES / "replay2.osr")
 
     def test_replay_mode(self):
         for replay in self._replays:
-            self.assertEqual(replay.game_mode, GameMode.Standard, "Game mode is incorrect")
+            self.assertEqual(replay.game_mode, GameMode.STD, "Game mode is incorrect")
 
     def test_game_version(self):
         for replay in self._replays:
@@ -47,10 +51,10 @@ class TestStandardReplay(unittest.TestCase):
 
     def test_nomod(self):
         for replay in self._replays:
-            self.assertEqual(replay.mod_combination, frozenset([Mod.NoMod]), "Mod combination is wrong")
+            self.assertEqual(replay.mod_combination, Mod.NoMod, "Mod combination is wrong")
 
     def test_mod_combination(self):
-        self.assertEqual(self._combination_replay.mod_combination, frozenset([Mod.Hidden, Mod.HardRock]), "Mod combination is wrong")
+        self.assertEqual(self._combination_replay.mod_combination, Mod.Hidden | Mod.HardRock, "Mod combination is wrong")
 
     def test_timestamp(self):
         for replay in self._replays:

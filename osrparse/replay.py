@@ -1,23 +1,39 @@
-from .enums import GameMode, Mod
-import lzma, struct, datetime
+import lzma
+import struct
+import datetime
+from typing import List
 
+from osrparse.enums import Mod, GameMode
 
-class ReplayEvent(object):
-    def __init__(self, time_since_previous_action, x, y, keys_pressed):
+# the first build with rng seed value added as the last frame in the lzma data.
+VERSION_THRESHOLD = 20130319
+
+class ReplayEvent():
+    def __init__(self, time_since_previous_action: int, x: float, y: float, keys_pressed: int):
         self.time_since_previous_action = time_since_previous_action
         self.x = x
         self.y = y
         self.keys_pressed = keys_pressed
 
+    def __str__(self):
+        return f"{self.time_since_previous_action} ({self.x}, {self.y}) {self.keys_pressed}"
 
-class Replay(object):
-    __BYTE = 1
-    __SHORT = 2
-    __INT = 4
-    __LONG = 8
+    def __eq__(self, other):
+        if not isinstance(other, ReplayEvent):
+            return False
+        return (self.time_since_previous_action == other.time_since_previous_action
+            and self.x == other.x and self.y == other.y and self.keys_pressed == other.keys_pressed)
 
-    #Order of field initilization matters.
-    def __init__(self, replay_data):
+    def __hash__(self):
+        return hash((self.time_since_previous_action, self.x, self.y, self.keys_pressed))
+
+class Replay():
+    _BYTE = 1
+    _SHORT = 2
+    _INT = 4
+    _LONG = 8
+
+    def __init__(self, replay_data: List[ReplayEvent], pure_lzma: bool, decompressed_lzma: bool):
         self.offset = 0
         self.game_mode = None
         self.game_version = None
@@ -37,53 +53,43 @@ class Replay(object):
         self.life_bar_graph = None
         self.timestamp = None
         self.play_data = None
-        self.parse_replay_and_initialize_fields(replay_data)
+        self.replay_id = None
+        self._parse_replay_and_initialize_fields(replay_data, pure_lzma, decompressed_lzma)
 
-    def parse_replay_and_initialize_fields(self, replay_data):
-        self.parse_game_mode_and_version(replay_data)
-        self.parse_beatmap_hash(replay_data)
-        self.parse_player_name(replay_data)
-        self.parse_replay_hash(replay_data)
-        self.parse_score_stats(replay_data)
-        self.parse_life_bar_graph(replay_data)
-        self.parse_timestamp_and_replay_length(replay_data)
-        self.parse_play_data(replay_data)
+    def _parse_replay_and_initialize_fields(self, replay_data, pure_lzma, decompressed_lzma):
+        if pure_lzma:
+            self.data_from_lmza(replay_data, decompressed_lzma)
+            return
+        self._parse_game_mode_and_version(replay_data)
+        self._parse_beatmap_hash(replay_data)
+        self._parse_player_name(replay_data)
+        self._parse_replay_hash(replay_data)
+        self._parse_score_stats(replay_data)
+        self._parse_life_bar_graph(replay_data)
+        self._parse_timestamp_and_replay_length(replay_data)
+        self._parse_play_data(replay_data)
+        self._parse_replay_id(replay_data)
 
-    def parse_game_mode_and_version(self, replay_data):
+    def _parse_game_mode_and_version(self, replay_data):
         format_specifier = "<bi"
         data = struct.unpack_from(format_specifier, replay_data, self.offset)
         self.offset += struct.calcsize(format_specifier)
         self.game_mode, self.game_version = (GameMode(data[0]), data[1])
 
-    def unpack_game_stats(self, game_stats):
-        self.number_300s, self.number_100s, self.number_50s, self.gekis, self.katus, self.misses, self.score, self.max_combo, self.is_perfect_combo, self.mod_combination = game_stats
+    def _unpack_game_stats(self, game_stats):
+        (self.number_300s, self.number_100s, self.number_50s, self.gekis,
+         self.katus, self.misses, self.score, self.max_combo,
+         self.is_perfect_combo, mod_combination) = game_stats
 
-    def parse_mod_combination(self):
-        # Generator yielding value of each bit in an integer if it's set + value
-        # of LSB no matter what .
-        def bits(n):
-            if n == 0:
-                yield 0
-            while n:
-                b = n & (~n+1)
-                yield b
-                n ^= b
+        self.mod_combination = Mod(mod_combination)
 
-        bit_values_gen = bits(self.mod_combination)
-        self.mod_combination = frozenset(Mod(mod_val) for mod_val in bit_values_gen)
-
-    def parse_score_stats(self, replay_data):
+    def _parse_score_stats(self, replay_data):
         format_specifier = "<hhhhhhih?i"
         data = struct.unpack_from(format_specifier, replay_data, self.offset)
-        self.unpack_game_stats(data)
-        self.parse_mod_combination()
+        self._unpack_game_stats(data)
         self.offset += struct.calcsize(format_specifier)
 
-    @staticmethod
-    def __parse_as_int(bytestring):
-        return int.from_bytes(bytestring, byteorder='little')
-
-    def __decode(self, binarystream):
+    def _decode(self, binarystream):
         result = 0
         shift = 0
         while True:
@@ -95,41 +101,41 @@ class Replay(object):
             shift += 7
         return result
 
-    def parse_player_name(self, replay_data):
-        self.player_name = self.parse_string(replay_data)
+    def _parse_player_name(self, replay_data):
+        self.player_name = self._parse_string(replay_data)
 
-    def parse_string(self, replay_data):
+    def _parse_string(self, replay_data):
         if replay_data[self.offset] == 0x00:
-            self.offset += Replay.__BYTE
+            self.offset += Replay._BYTE
         elif replay_data[self.offset] == 0x0b:
-            self.offset += Replay.__BYTE
-            string_length = self.__decode(replay_data)
+            self.offset += Replay._BYTE
+            string_length = self._decode(replay_data)
             offset_end = self.offset + string_length
             string = replay_data[self.offset:offset_end].decode("utf-8")
             self.offset = offset_end
             return string
         else:
-            #TODO: Replace with custom exception
-            raise Exception("Invalid replay")
+            raise ValueError("Expected the first byte of a string to be 0x00 "
+                f"or 0x0b, but got {replay_data[self.offset]}")
 
-    def parse_beatmap_hash(self, replay_data):
-        self.beatmap_hash = self.parse_string(replay_data)
+    def _parse_beatmap_hash(self, replay_data):
+        self.beatmap_hash = self._parse_string(replay_data)
 
-    def parse_replay_hash(self, replay_data):
-        self.replay_hash = self.parse_string(replay_data)
+    def _parse_replay_hash(self, replay_data):
+        self.replay_hash = self._parse_string(replay_data)
 
-    def parse_life_bar_graph(self, replay_data):
-        self.life_bar_graph = self.parse_string(replay_data)
+    def _parse_life_bar_graph(self, replay_data):
+        self.life_bar_graph = self._parse_string(replay_data)
 
-    def parse_timestamp_and_replay_length(self, replay_data):
+    def _parse_timestamp_and_replay_length(self, replay_data):
         format_specifier = "<qi"
-        (t, self.__replay_length) = struct.unpack_from(format_specifier, replay_data, self.offset)
+        (t, self.replay_length) = struct.unpack_from(format_specifier, replay_data, self.offset)
         self.timestamp = datetime.datetime.min + datetime.timedelta(microseconds=t/10)
         self.offset += struct.calcsize(format_specifier)
 
-    def parse_play_data(self, replay_data):
-        offset_end = self.offset+self.__replay_length
-        if self.game_mode != GameMode.Standard:
+    def _parse_play_data(self, replay_data):
+        offset_end = self.offset+self.replay_length
+        if self.game_mode != GameMode.STD:
             self.play_data = None
         else:
             datastring = lzma.decompress(replay_data[self.offset:offset_end], format=lzma.FORMAT_AUTO).decode('ascii')[:-1]
@@ -137,10 +143,26 @@ class Replay(object):
             self.play_data = [ReplayEvent(int(event[0]), float(event[1]), float(event[2]), int(event[3])) for event in events]
         self.offset = offset_end
 
-def parse_replay(replay_data):
-    return Replay(replay_data)
+        if self.game_version >= VERSION_THRESHOLD and self.play_data:
+            if self.play_data[-1].time_since_previous_action != -12345:
+                print("The RNG seed value was expected in the last frame, but was not found. "
+                      "\nGame Version: {}, version threshold: {}, replay hash: {}, mode: {}".format(self.game_version, VERSION_THRESHOLD, self.replay_hash, "osr"))
+            else:
+                del self.play_data[-1]
 
-def parse_replay_file(replay_path):
-    with open(replay_path, 'rb') as f:
-        data = f.read()
-    return parse_replay(data)
+    def data_from_lmza(self, lzma_string, decompressed_lzma):
+        if decompressed_lzma:
+            # replay data is already decompressed and decoded.
+            # Remove last character (comma) so splitting works, same below
+            datastring = lzma_string[:-1]
+        else:
+            datastring = lzma.decompress(lzma_string, format=lzma.FORMAT_AUTO).decode('ascii')[:-1]
+        events = [eventstring.split('|') for eventstring in datastring.split(',')]
+        self.play_data = [ReplayEvent(int(event[0]), float(event[1]), float(event[2]), int(event[3])) for event in events]
+
+        if self.play_data[-1].time_since_previous_action == -12345:
+            del self.play_data[-1]
+
+    def _parse_replay_id(self, replay_data):
+        format_specifier = "<q"
+        self.replay_id = struct.unpack_from(format_specifier, replay_data, self.offset)[0]
