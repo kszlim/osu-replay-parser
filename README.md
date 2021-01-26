@@ -7,7 +7,7 @@ This is a parser for osu! replay files (.osr) as described by <https://osu.ppy.s
 
 ## Installation
 
-To install, simply
+To install, simply:
 
 ```sh
 pip install osrparse
