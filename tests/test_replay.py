@@ -15,6 +15,7 @@ class TestStandardReplay(TestCase):
             data = f.read()
         cls._replays = [parse_replay(data, pure_lzma=False), parse_replay_file(replay1_path)]
         cls._combination_replay = parse_replay_file(RES / "replay2.osr")
+        cls._old_replayid_replay = parse_replay_file(RES / "replay_old_replayid.osr")
 
     def test_replay_mode(self):
         for replay in self._replays:
@@ -64,3 +65,10 @@ class TestStandardReplay(TestCase):
         for replay in self._replays:
             self.assertIsInstance(replay.play_data[0], ReplayEvent, "Replay data is wrong")
             self.assertEqual(len(replay.play_data), 17500, "Replay data is wrong")
+
+    def test_replay_id(self):
+        for replay in self._replays:
+            self.assertEqual(replay.replay_id, 1040219800)
+        # old replays had game_version stored as a short, we want to make sure
+        # we can parse it properly instead of erroring
+        self.assertEqual(self._old_replayid_replay.replay_id, 1127598189)

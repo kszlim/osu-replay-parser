@@ -165,4 +165,19 @@ class Replay():
 
     def _parse_replay_id(self, replay_data):
         format_specifier = "<q"
-        self.replay_id = struct.unpack_from(format_specifier, replay_data, self.offset)[0]
+        try:
+            replay_id = struct.unpack_from(format_specifier, replay_data, self.offset)
+        # old replays had replay_id stored as a short (4 bytes) instead of a
+        # long (8 bytes), so fall back to short if necessary.
+        # lazer checks against the gameversion before trying to parse as a
+        # short, but there may be some weirdness with replays that were set
+        # during this time but downloaded later having actually correct (long)
+        # replay_ids, since they were likely manually migrated at some point
+        # after the switch to long took place.
+        # See:
+        # https://github.com/ppy/osu/blob/84e1ff79a0736aa6c7a44804b585ab1c54a84399/
+        # osu.Game/Scoring/Legacy/LegacyScoreDecoder.cs#L78-L81
+        except struct.error:
+            format_specifier = "<l"
+            replay_id = struct.unpack_from(format_specifier, replay_data, self.offset)
+        self.replay_id = replay_id[0]
