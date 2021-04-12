@@ -5,9 +5,6 @@ from typing import List
 
 from osrparse.enums import Mod, GameMode
 
-# the first build with rng seed value added as the last frame in the lzma data.
-VERSION_THRESHOLD = 20130319
-
 class ReplayEvent():
     def __init__(self, time_since_previous_action: int, x: float, y: float, keys_pressed: int):
         self.time_since_previous_action = time_since_previous_action
@@ -28,6 +25,8 @@ class ReplayEvent():
         return hash((self.time_since_previous_action, self.x, self.y, self.keys_pressed))
 
 class Replay():
+    # first version with rng seed value added as the last frame in the lzma data
+    LAST_FRAME_SEED_VERSION = 20130319
     _BYTE = 1
     _SHORT = 2
     _INT = 4
@@ -143,10 +142,11 @@ class Replay():
             self.play_data = [ReplayEvent(int(event[0]), float(event[1]), float(event[2]), int(event[3])) for event in events]
         self.offset = offset_end
 
-        if self.game_version >= VERSION_THRESHOLD and self.play_data:
+        if self.game_version >= self.LAST_FRAME_SEED_VERSION and self.play_data:
             if self.play_data[-1].time_since_previous_action != -12345:
                 print("The RNG seed value was expected in the last frame, but was not found. "
-                      "\nGame Version: {}, version threshold: {}, replay hash: {}, mode: {}".format(self.game_version, VERSION_THRESHOLD, self.replay_hash, "osr"))
+                      f"\nGame Version: {self.game_version}, version threshold: "
+                      f"{self.LAST_FRAME_SEED_VERSION}, replay hash: {self.replay_hash}")
             else:
                 del self.play_data[-1]
 
@@ -165,4 +165,19 @@ class Replay():
 
     def _parse_replay_id(self, replay_data):
         format_specifier = "<q"
-        self.replay_id = struct.unpack_from(format_specifier, replay_data, self.offset)[0]
+        try:
+            replay_id = struct.unpack_from(format_specifier, replay_data, self.offset)
+        # old replays had replay_id stored as a short (4 bytes) instead of a
+        # long (8 bytes), so fall back to short if necessary.
+        # lazer checks against the gameversion before trying to parse as a
+        # short, but there may be some weirdness with replays that were set
+        # during this time but downloaded later having actually correct (long)
+        # replay_ids, since they were likely manually migrated at some point
+        # after the switch to long took place.
+        # See:
+        # https://github.com/ppy/osu/blob/84e1ff79a0736aa6c7a44804b585ab1c54a84399/
+        # osu.Game/Scoring/Legacy/LegacyScoreDecoder.cs#L78-L81
+        except struct.error:
+            format_specifier = "<l"
+            replay_id = struct.unpack_from(format_specifier, replay_data, self.offset)
+        self.replay_id = replay_id[0]
