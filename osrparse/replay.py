@@ -32,8 +32,7 @@ class Replay():
     _INT = 4
     _LONG = 8
 
-    def __init__(self, replay_data: List[ReplayEvent], pure_lzma: bool, decompressed_lzma: bool,
-                 allow_unsupported_play_data: bool = False):
+    def __init__(self, replay_data: List[ReplayEvent], pure_lzma: bool, decompressed_lzma: bool):
         self.offset = 0
         self.game_mode = None
         self.game_version = None
@@ -54,7 +53,6 @@ class Replay():
         self.timestamp = None
         self.play_data = None
         self.replay_id = None
-        self._allow_unsupported_play_data = allow_unsupported_play_data
         self._parse_replay_and_initialize_fields(replay_data, pure_lzma, decompressed_lzma)
 
     def _parse_replay_and_initialize_fields(self, replay_data, pure_lzma, decompressed_lzma):
@@ -136,12 +134,11 @@ class Replay():
 
     def _parse_play_data(self, replay_data):
         offset_end = self.offset+self.replay_length
-        if self.game_mode == GameMode.STD or self._allow_unsupported_play_data:
-            datastring = lzma.decompress(replay_data[self.offset:offset_end], format=lzma.FORMAT_AUTO).decode('ascii')[:-1]
-            events = [eventstring.split('|') for eventstring in datastring.split(',')]
-            self.play_data = [ReplayEvent(int(event[0]), float(event[1]), float(event[2]), int(event[3])) for event in events]
-        else:
-            self.play_data = None
+
+        datastring = lzma.decompress(replay_data[self.offset:offset_end], format=lzma.FORMAT_AUTO).decode('ascii')[:-1]
+        events = [eventstring.split('|') for eventstring in datastring.split(',')]
+        self.play_data = [ReplayEvent(int(event[0]), float(event[1]), float(event[2]), int(event[3])) for event in events]
+
         self.offset = offset_end
 
         if self.game_version >= self.LAST_FRAME_SEED_VERSION and self.play_data:
