@@ -64,6 +64,10 @@ class KeyMania(IntFlag):
     K7 = 1 << 6
     K8 = 1 << 7
 
+# the osr format for non-std gamemodes isn't document on the wiki. Here's
+# the reference I used for non-std replay events below:
+# https://github.com/kszlim/osu-replay-parser/pull/27#issuecomment-845679072.
+
 class ReplayEvent(abc.ABC):
     def __init__(self, time_delta: int):
         self.time_delta = time_delta
