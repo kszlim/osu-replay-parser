@@ -3,26 +3,7 @@ import struct
 import datetime
 from typing import List
 
-from osrparse.enums import Mod, GameMode
-
-class ReplayEvent:
-    def __init__(self, time_since_previous_action: int, x: float, y: float, keys_pressed: int):
-        self.time_since_previous_action = time_since_previous_action
-        self.x = x
-        self.y = y
-        self.keys_pressed = keys_pressed
-
-    def __str__(self):
-        return f"{self.time_since_previous_action} ({self.x}, {self.y}) {self.keys_pressed}"
-
-    def __eq__(self, other):
-        if not isinstance(other, ReplayEvent):
-            return False
-        return (self.time_since_previous_action == other.time_since_previous_action
-            and self.x == other.x and self.y == other.y and self.keys_pressed == other.keys_pressed)
-
-    def __hash__(self):
-        return hash((self.time_since_previous_action, self.x, self.y, self.keys_pressed))
+from osrparse.utils import Mod, GameMode, ReplayEvent
 
 class Replay:
     # first version with rng seed value added as the last frame in the lzma data
@@ -143,7 +124,7 @@ class Replay:
         self.offset = offset_end
 
         if self.game_version >= self.LAST_FRAME_SEED_VERSION and self.play_data:
-            if self.play_data[-1].time_since_previous_action != -12345:
+            if self.play_data[-1].time_delta != -12345:
                 print("The RNG seed value was expected in the last frame, but was not found. "
                       f"\nGame Version: {self.game_version}, version threshold: "
                       f"{self.LAST_FRAME_SEED_VERSION}, replay hash: {self.replay_hash}")
@@ -160,7 +141,7 @@ class Replay:
         events = [eventstring.split('|') for eventstring in datastring.split(',')]
         self.play_data = [ReplayEvent(int(event[0]), float(event[1]), float(event[2]), int(event[3])) for event in events]
 
-        if self.play_data[-1].time_since_previous_action == -12345:
+        if self.play_data[-1].time_delta == -12345:
             del self.play_data[-1]
 
     def _parse_replay_id(self, replay_data):

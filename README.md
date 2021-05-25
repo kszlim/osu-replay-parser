@@ -61,8 +61,8 @@ self.play_data # list[ReplayEvent]
 ReplayEvent objects provide the following fields:
 
 ```python
-self.time_since_previous_action # int (in milliseconds)
+self.time_delta # int (in milliseconds)
 self.x # x axis location
 self.y # y axis location
-self.keys_pressed # bitwise sum of keys pressed, documented in OSR format page
+self.keys # Key IntFlag of keys pressed
 ```

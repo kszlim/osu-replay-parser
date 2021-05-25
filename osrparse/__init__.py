@@ -1,4 +1,4 @@
-from osrparse.enums import GameMode, Mod
+from osrparse.utils import GameMode, Mod
 from osrparse.parse import parse_replay_file, parse_replay
 from osrparse.replay import Replay, ReplayEvent
 

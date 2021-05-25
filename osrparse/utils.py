@@ -39,3 +39,34 @@ class Mod(IntFlag):
     Key2        =  1 << 28
     ScoreV2     =  1 << 29
     Mirror      =  1 << 30
+
+class Key(IntFlag):
+    M1    = 1 << 0
+    M2    = 1 << 1
+    K1    = 1 << 2
+    K2    = 1 << 3
+    SMOKE = 1 << 4
+
+class ReplayEvent:
+    def __init__(self, time_delta: int, x: float, y: float,
+        keys: int):
+        self.time_delta = time_delta
+        self.x = x
+        self.y = y
+        self.keys = Key(keys)
+
+    def __str__(self):
+        return (f"{self.time_delta} ({self.x}, {self.y}) "
+            f"{self.keys}")
+
+    def __eq__(self, other):
+        if not isinstance(other, ReplayEvent):
+            return False
+        t = self.time_delta
+        other_t = other.time_delta
+        return (t == other_t and self.x == other.x and self.y == other.y
+            and self.keys == other.keys)
+
+    def __hash__(self):
+        return hash((self.time_delta, self.x, self.y,
+            self.keys))
