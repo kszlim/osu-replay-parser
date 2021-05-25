@@ -1,7 +1,8 @@
 from pathlib import Path
 from unittest import TestCase
 import datetime
-from osrparse import parse_replay, parse_replay_file, ReplayEvent, GameMode, Mod
+from osrparse import (parse_replay, parse_replay_file, ReplayEventOsu, GameMode,
+    Mod, ReplayEventTaiko, ReplayEventCatch, ReplayEventMania)
 
 RES = Path(__file__).parent / "resources"
 
@@ -63,7 +64,7 @@ class TestStandardReplay(TestCase):
 
     def test_play_data(self):
         for replay in self._replays:
-            self.assertIsInstance(replay.play_data[0], ReplayEvent, "Replay data is wrong")
+            self.assertIsInstance(replay.play_data[0], ReplayEventOsu, "Replay data is wrong")
             self.assertEqual(len(replay.play_data), 17500, "Replay data is wrong")
 
     def test_replay_id(self):
@@ -72,3 +73,36 @@ class TestStandardReplay(TestCase):
         # old replays had game_version stored as a short, we want to make sure
         # we can parse it properly instead of erroring
         self.assertEqual(self._old_replayid_replay.replay_id, 1127598189)
+
+class TestTaikoReplay(TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        cls.replay = parse_replay_file(RES / "taiko.osr")
+
+    def test_play_data(self):
+        play_data = self.replay.play_data
+        self.assertIsInstance(play_data[0], ReplayEventTaiko, "Replay data is wrong")
+        self.assertEqual(len(play_data), 17475, "Replay data is wrong")
+
+class TestCatchReplay(TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        cls.replay = parse_replay_file(RES / "ctb.osr")
+
+    def test_play_data(self):
+        play_data = self.replay.play_data
+        self.assertIsInstance(play_data[0], ReplayEventCatch, "Replay data is wrong")
+        self.assertEqual(len(play_data), 10439, "Replay data is wrong")
+
+class TestManiaReplay(TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        cls.replay = parse_replay_file(RES / "mania.osr")
+
+    def test_play_data(self):
+        play_data = self.replay.play_data
+        self.assertIsInstance(play_data[0], ReplayEventMania, "Replay data is wrong")
+        self.assertEqual(len(play_data), 17432, "Replay data is wrong")
