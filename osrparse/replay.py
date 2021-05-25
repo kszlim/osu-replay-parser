@@ -5,7 +5,7 @@ from typing import List
 
 from osrparse.enums import Mod, GameMode
 
-class ReplayEvent():
+class ReplayEvent:
     def __init__(self, time_since_previous_action: int, x: float, y: float, keys_pressed: int):
         self.time_since_previous_action = time_since_previous_action
         self.x = x
@@ -24,7 +24,7 @@ class ReplayEvent():
     def __hash__(self):
         return hash((self.time_since_previous_action, self.x, self.y, self.keys_pressed))
 
-class Replay():
+class Replay:
     # first version with rng seed value added as the last frame in the lzma data
     LAST_FRAME_SEED_VERSION = 20130319
     _BYTE = 1
