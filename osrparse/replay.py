@@ -126,9 +126,15 @@ class Replay:
 
         if self.game_version >= self.LAST_FRAME_SEED_VERSION and self.play_data:
             if self.play_data[-1].time_delta != -12345:
-                print("The RNG seed value was expected in the last frame, but was not found. "
-                      f"\nGame Version: {self.game_version}, version threshold: "
-                      f"{self.LAST_FRAME_SEED_VERSION}, replay hash: {self.replay_hash}")
+                pass
+                # I've disabled this warning temporarily as it turns out that
+                # many replays (perhaps all replays in non-std gamemodes?) don't
+                # have an RNG seed value even after the expected version, so
+                # this was more of an annoying false positive than anything.
+
+                # print("The RNG seed value was expected in the last frame, but was not found. "
+                #       f"\nGame Version: {self.game_version}, version threshold: "
+                #       f"{self.LAST_FRAME_SEED_VERSION}, replay hash: {self.replay_hash}")
             else:
                 del self.play_data[-1]
 
