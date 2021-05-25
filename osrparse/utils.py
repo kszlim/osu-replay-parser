@@ -64,7 +64,7 @@ class KeyMania(IntFlag):
     K7 = 1 << 6
     K8 = 1 << 7
 
-class ReplayEvent:
+class ReplayEvent(abc.ABC):
     def __init__(self, time_delta: int):
         self.time_delta = time_delta
 
@@ -91,6 +91,9 @@ class ReplayEventOsu(ReplayEvent):
     def __str__(self):
         return (f"{self.time_delta} ({self.x}, {self.y}) "
             f"{self.keys}")
+
+    def _members(self):
+        return (self.time_delta, self.x, self.y, self.keys)
 
 class ReplayEventTaiko(ReplayEvent):
     def __init__(self, time_delta: int, x: int, keys: int):
