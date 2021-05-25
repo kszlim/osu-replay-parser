@@ -34,6 +34,7 @@ class Replay:
         self.timestamp = None
         self.play_data = None
         self.replay_id = None
+        self.replay_length = None
         self._parse_replay_and_initialize_fields(replay_data, pure_lzma, decompressed_lzma)
 
     def _parse_replay_and_initialize_fields(self, replay_data, pure_lzma, decompressed_lzma):
