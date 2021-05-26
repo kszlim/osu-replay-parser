@@ -63,6 +63,16 @@ class KeyMania(IntFlag):
     K6 = 1 << 5
     K7 = 1 << 6
     K8 = 1 << 7
+    K9 = 1 << 8
+    K10 = 1 << 9
+    K11 = 1 << 10
+    K12 = 1 << 11
+    K13 = 1 << 12
+    K14 = 1 << 13
+    K15 = 1 << 14
+    K16 = 1 << 15
+    K17 = 1 << 16
+    K18 = 1 << 17
 
 # the osr format for non-std gamemodes isn't document on the wiki. Here's
 # the reference I used for non-std replay events below:
