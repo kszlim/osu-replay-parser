@@ -3,7 +3,7 @@ from osrparse.utils import (GameMode, Mod, Key, ReplayEvent, ReplayEventOsu,
 from osrparse.parse import parse_replay_file, parse_replay
 from osrparse.replay import Replay
 
-__version__ = "4.0.1"
+__version__ = "5.0.0"
 
 
 __all__ = ["GameMode", "Mod", "parse_replay_file", "parse_replay", "Replay",
