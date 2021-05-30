@@ -59,9 +59,8 @@ self.is_perfect_combo # bool
 self.mod_combination  # Mod enum
 self.life_bar_graph   # str, currently unparsed
 self.timestamp        # datetime.datetime object
-# list of either ReplayEventOsu, ReplayEventTaiko,
-# ReplayEventCatch, or ReplayEventMania objects,
-# depending on self.game_mode
+# list of either ReplayEventOsu, ReplayEventTaiko, ReplayEventCatch,
+# or ReplayEventMania objects, depending on self.game_mode
 self.play_data
 ```
 
