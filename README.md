@@ -23,7 +23,7 @@ To parse a replay from a filepath:
 from osrparse import parse_replay_file
 
 # returns a Replay object
-parse_replay_file("path/to/osr.osr")
+replay = parse_replay_file("path/to/osr.osr")
 ```
 
 To parse a replay from an lzma string (such as the one returned from the `/get_replay` osu! api endpoint):
@@ -32,7 +32,7 @@ To parse a replay from an lzma string (such as the one returned from the `/get_r
 from osrparse import parse_replay
 
 # returns a Replay object that only has a `play_data` attribute
-parse_replay(lzma_string, pure_lzma=True)
+replay = parse_replay(lzma_string, pure_lzma=True)
 ```
 
 Note that if you use the `/get_replay` endpoint to retrieve a replay, you must decode the response before passing it to osrparse, as the response is encoded in base 64 by default.
