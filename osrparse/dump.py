@@ -1,5 +1,5 @@
+from osrparse.utils import ReplayEventOsu, ReplayEventTaiko, ReplayEventCatch, ReplayEventMania
 from osrparse.replay import Replay
-from osrparse.utils import ReplayEventOsu
 
 import hashlib, lzma
 import struct
@@ -83,7 +83,7 @@ class ReplayDumper:
         # even though it's small (around 4 ticks), it might be an issue with reproccessing the same replay
         # for many times in a row
 
-        shift = 62135596800 + 7200 # when it's negative, it represents January 1st 0001, 02:00:00 AM UTC
+        shift = 62135596800 + 3600 # when it's negative, it represents January 1st 0001, 01:00:00 AM UTC
         ticks = (self.replay.timestamp.timestamp() + shift) * 10_000_000 
         
         return PackFormat.Long(int(ticks))
@@ -91,10 +91,14 @@ class ReplayDumper:
     def _dump_replay_data(self, events):
         replay_data = ""
         for event in events:
-            if not isinstance(event, ReplayEventOsu): # gonna work on other modes later
-                return
-            
-            replay_data += f"{event.time_delta}|{event.x}|{event.y}|{event.keys.value},"
+            if isinstance(event, ReplayEventOsu): # gonna work on other modes later
+                replay_data += f"{event.time_delta}|{event.x}|{event.y}|{event.keys.value},"
+            elif isinstance(event, ReplayEventTaiko):
+                replay_data += f"{event.time_delta}|{event.x}|0|{event.keys.value},"
+            elif isinstance(event, ReplayEventCatch):
+                replay_data += f"{event.time_delta}|{event.x}|0|{int(event.dashing)},"
+            elif isinstance(event, ReplayEventMania):
+                replay_data += f"{event.time_delta}|{event.keys}|0|0,"
 
         filters = [{"id": lzma.FILTER_LZMA1, "dict_size": 2097152, "mode": lzma.MODE_FAST}]
         compressed = lzma.compress(replay_data.encode("ascii"), format=lzma.FORMAT_ALONE, filters=filters)
