@@ -102,6 +102,10 @@ class ReplayDumper:
         self._hash = hashlib.md5(compressed).hexdigest()
         self._play_data = PackFormat.Integer(len(compressed)) + compressed
 
-def dumpf(replay: Replay, f):
+def dump_replay(replay: Replay):
     dumper = ReplayDumper(replay)
-    f.write(dumper.dump())
+    return dumper.dump()
+
+def dump_replay_file(replay: Replay, file_name: str):
+    with open(file_name, "wb") as f:
+        f.write(dump_replay(replay))
