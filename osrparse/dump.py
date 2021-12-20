@@ -3,6 +3,7 @@ from osrparse.utils import ReplayEventOsu
 
 import hashlib, lzma
 import struct
+import time
 
 class PackFormat:
     # data types
@@ -78,8 +79,14 @@ class ReplayDumper:
         return self.data
     
     def _dump_timestamp(self):
-        ts_win = 62135596800 # January 1st 0001, 12:00:00 PM UTC
-        return PackFormat.Long((int(self.replay.timestamp.timestamp()) + ts_win) * (10 ** 7))
+        # due to converting ticks into an int, there appears to be some precision loss in the ticks value
+        # even though it's small (around 4 ticks), it might be an issue with reproccessing the same replay
+        # for many times in a row
+
+        shift = 62135596800 + 7200 # when it's negative, it represents January 1st 0001, 02:00:00 AM UTC
+        ticks = (self.replay.timestamp.timestamp() + shift) * 10_000_000 
+        
+        return PackFormat.Long(int(ticks))
     
     def _dump_replay_data(self, events):
         replay_data = ""
