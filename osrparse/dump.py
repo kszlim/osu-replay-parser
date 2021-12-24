@@ -1,9 +1,9 @@
-from osrparse.utils import ReplayEventOsu, ReplayEventTaiko, ReplayEventCatch, ReplayEventMania
-from osrparse.replay import Replay
-
 import hashlib, lzma
 import struct
-import time
+
+from osrparse.utils import (ReplayEventOsu, ReplayEventTaiko, ReplayEventCatch,
+    ReplayEventMania)
+from osrparse.replay import Replay
 
 class PackFormat:
     # data types
@@ -30,7 +30,7 @@ class PackFormat:
             if (i == 0 and byte & 0x40 == 0) or (i == -1 and byte & 0x40 != 0):
                 r.append(byte)
                 return b"".join(map(PackFormat.Byte, r))
-            
+
             r.append(0x80 | byte)
 
     def String(data: str):
@@ -77,17 +77,17 @@ class ReplayDumper:
         self.data += PackFormat.Long(self.replay.replay_id)             # replay id
 
         return self.data
-    
+
     def _dump_timestamp(self):
         # due to converting ticks into an int, there appears to be some precision loss in the ticks value
         # even though it's small (around 4 ticks), it might be an issue with reproccessing the same replay
         # for many times in a row
 
         shift = 62135596800 + 3600 # when it's negative, it represents January 1st 0001, 01:00:00 AM UTC
-        ticks = (self.replay.timestamp.timestamp() + shift) * 10_000_000 
-        
+        ticks = (self.replay.timestamp.timestamp() + shift) * 10_000_000
+
         return PackFormat.Long(int(ticks))
-    
+
     def _dump_replay_data(self, events):
         replay_data = ""
         for event in events:
@@ -102,7 +102,7 @@ class ReplayDumper:
 
         filters = [{"id": lzma.FILTER_LZMA1, "dict_size": 2097152, "mode": lzma.MODE_FAST}]
         compressed = lzma.compress(replay_data.encode("ascii"), format=lzma.FORMAT_ALONE, filters=filters)
-        
+
         self._hash = hashlib.md5(compressed).hexdigest()
         self._play_data = PackFormat.Integer(len(compressed)) + compressed
 
