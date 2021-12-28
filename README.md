@@ -39,21 +39,22 @@ Note that if you use the `/get_replay` endpoint to retrieve a replay, you must d
 
 ### Dumping
 
-To dump a replay to a filepath:
-```python
-from osrparse import dump_replay_file
+Existing `Replay` objects can be "dumped" back to a `.osr` file:
 
-# ...some parsing code here
-dump_replay_file(replay, "path/to/osr.osr")
+```python
+
+replay.dump("path/to/osr.osr")
+# or to an opened file object
+with open("path/to/osr.osr") as f:
+    replay.dump(f)
 ```
 
-To dump a replay into a variable:
+You can also edit osr files by parsing a replay, editing an attribute, and dumping it back to its file:
 
 ```python
-from osrparse import dump_replay
-
-# ...some parsing code here
-osr_content = dump_replay(replay)
+replay = parse_replay_file("path/to/osr.osr")
+replay.player_name = "fake username"
+replay.dump(""path/to/osr.osr")
 ```
 
 ### Attributes
