@@ -58,7 +58,7 @@ def dump_replay_data(replay):
         elif isinstance(event, ReplayEventMania):
             replay_data += f"{event.time_delta}|{event.keys}|0|0,"
 
-    filters = [{"id": lzma.FILTER_LZMA1, "dict_size": 2097152, "mode": lzma.MODE_NORMAL}]
+    filters = [{"id": lzma.FILTER_LZMA1, "dict_size": 1 << 21, "mode": lzma.MODE_NORMAL}]
     compressed = lzma.compress(replay_data.encode("ascii"), format=lzma.FORMAT_ALONE, filters=filters)
 
     return pack_int(len(compressed)) + compressed
