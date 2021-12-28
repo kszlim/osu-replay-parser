@@ -19,11 +19,14 @@ class TestDumping(TestCase):
             self.replay.dump(r2_path)
             r2 = parse_replay_file(r2_path)
 
+        # `replay_length` is intentionally not tested for equality here, as the
+        # length of the compressed replay data may change after dumping due to
+        # varying lzma settings.
         attrs = ["game_mode", "game_version", "beatmap_hash", "player_name",
             "replay_hash", "number_300s", "number_100s", "number_50s", "gekis",
             "katus", "misses", "score", "max_combo", "is_perfect_combo",
             "mod_combination", "life_bar_graph", "timestamp", "play_data",
-            "replay_id", "replay_length"]
+            "replay_id"]
         for attr in attrs:
             self.assertEqual(getattr(self.replay, attr), getattr(r2, attr),
                 f"{attr} is wrong")
