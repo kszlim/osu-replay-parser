@@ -37,16 +37,13 @@ def pack_string(data: str):
     return pack_byte(11) + pack_byte(0)
 
 def dump_timestamp(replay):
-    # due to converting ticks into an int, there appears to be some
-    # precision loss in the ticks value even though it's small (around 4
-    # ticks), it might be an issue with reproccessing the same replay for
-    # many times in a row
-
-    # when it's negative, it represents January 1st 0001, 01:00:00 AM UTC
-    shift = 62135596800 + 3600
-    ticks = (replay.timestamp.timestamp() + shift) * 10_000_000
-
-    return pack_long(int(ticks))
+    # windows ticks starts at year 0001, in contrast to unix time (1970).
+    # 62135596800 is the number of seconds between these two years and is added
+    # to account for this difference.
+    # The factor of 10000000 converts seconds to ticks.
+    ticks = (62135596800 + replay.timestamp.timestamp()) * 10000000
+    ticks = int(ticks)
+    return pack_long(ticks)
 
 
 def dump_replay_data(replay):
@@ -61,7 +58,7 @@ def dump_replay_data(replay):
         elif isinstance(event, ReplayEventMania):
             replay_data += f"{event.time_delta}|{event.keys}|0|0,"
 
-    filters = [{"id": lzma.FILTER_LZMA1, "dict_size": 2097152, "mode": lzma.MODE_FAST}]
+    filters = [{"id": lzma.FILTER_LZMA1, "dict_size": 2097152, "mode": lzma.MODE_NORMAL}]
     compressed = lzma.compress(replay_data.encode("ascii"), format=lzma.FORMAT_ALONE, filters=filters)
 
     return pack_int(len(compressed)) + compressed
