@@ -184,5 +184,5 @@ class Replay:
 
         if file:
             file.write(dumped)
-        
+
         return dumped
