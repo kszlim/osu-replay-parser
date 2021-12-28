@@ -1,6 +1,6 @@
 import lzma
 import struct
-import datetime
+from datetime import datetime, timezone, timedelta
 from typing import List
 
 from osrparse.utils import (Mod, GameMode, ReplayEvent, ReplayEventOsu,
@@ -112,7 +112,8 @@ class Replay:
     def _parse_timestamp_and_replay_length(self, replay_data):
         format_specifier = "<qi"
         (t, self.replay_length) = struct.unpack_from(format_specifier, replay_data, self.offset)
-        self.timestamp = datetime.datetime.min + datetime.timedelta(microseconds=t/10)
+        self.timestamp = datetime.min + timedelta(microseconds=t/10)
+        self.timestamp = self.timestamp.replace(tzinfo=timezone.utc)
         self.offset += struct.calcsize(format_specifier)
 
     def _parse_play_data(self, replay_data):
