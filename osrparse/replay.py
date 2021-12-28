@@ -5,6 +5,7 @@ from typing import List
 
 from osrparse.utils import (Mod, GameMode, ReplayEvent, ReplayEventOsu,
     ReplayEventCatch, ReplayEventMania, ReplayEventTaiko)
+from osrparse.dump import dump_replay
 
 class Replay:
     # first version with rng seed value added as the last frame in the lzma data
@@ -177,3 +178,11 @@ class Replay:
             format_specifier = "<l"
             replay_id = struct.unpack_from(format_specifier, replay_data, self.offset)
         self.replay_id = replay_id[0]
+
+    def dump(self, file=None):
+        dumped = dump_replay(self)
+
+        if file:
+            file.write(dumped)
+        
+        return dumped

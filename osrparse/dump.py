@@ -3,7 +3,6 @@ import struct
 
 from osrparse.utils import (ReplayEventOsu, ReplayEventTaiko, ReplayEventCatch,
     ReplayEventMania)
-from osrparse.replay import Replay
 
 def pack_byte(data: int):
     return struct.pack("<B", data)
@@ -64,7 +63,7 @@ def dump_replay_data(replay):
     return pack_int(len(compressed)) + compressed
 
 
-def dump_replay(replay: Replay):
+def dump_replay(replay):
     data = b""
 
     data += pack_byte(replay.game_mode.value)
@@ -93,7 +92,3 @@ def dump_replay(replay: Replay):
     data += pack_long(replay.replay_id)
 
     return data
-
-def dump_replay_file(replay: Replay, file_name: str):
-    with open(file_name, "wb") as f:
-        f.write(dump_replay(replay))
