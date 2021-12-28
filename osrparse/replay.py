@@ -1,10 +1,12 @@
 import lzma
 import struct
-import datetime
+from datetime import datetime, timezone, timedelta
 from typing import List
+from io import TextIOWrapper
 
 from osrparse.utils import (Mod, GameMode, ReplayEvent, ReplayEventOsu,
     ReplayEventCatch, ReplayEventMania, ReplayEventTaiko)
+from osrparse.dump import dump_replay
 
 class Replay:
     # first version with rng seed value added as the last frame in the lzma data
@@ -112,7 +114,8 @@ class Replay:
     def _parse_timestamp_and_replay_length(self, replay_data):
         format_specifier = "<qi"
         (t, self.replay_length) = struct.unpack_from(format_specifier, replay_data, self.offset)
-        self.timestamp = datetime.datetime.min + datetime.timedelta(microseconds=t/10)
+        self.timestamp = datetime.min + timedelta(microseconds=t/10)
+        self.timestamp = self.timestamp.replace(tzinfo=timezone.utc)
         self.offset += struct.calcsize(format_specifier)
 
     def _parse_play_data(self, replay_data):
@@ -176,3 +179,16 @@ class Replay:
             format_specifier = "<l"
             replay_id = struct.unpack_from(format_specifier, replay_data, self.offset)
         self.replay_id = replay_id[0]
+
+    def dump(self, file=None):
+        dumped = dump_replay(self)
+
+        if not file:
+            return dumped
+
+        # allow either a live file object, or a path to a file
+        if isinstance(file, TextIOWrapper):
+            file.write(dumped)
+        else:
+            with open(file, "wb") as f:
+                f.write(dumped)

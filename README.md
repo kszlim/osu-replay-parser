@@ -37,6 +37,25 @@ replay = parse_replay(lzma_string, pure_lzma=True)
 
 Note that if you use the `/get_replay` endpoint to retrieve a replay, you must decode the response before passing it to osrparse, as the response is encoded in base 64 by default.
 
+### Dumping
+
+To dump a replay to a filepath:
+```python
+from osrparse import dump_replay_file
+
+# ...some parsing code here
+dump_replay_file(replay, "path/to/osr.osr")
+```
+
+To dump a replay into a variable:
+
+```python
+from osrparse import dump_replay
+
+# ...some parsing code here
+osr_content = dump_replay(replay)
+```
+
 ### Attributes
 
 `Replay` objects have the following attibutes:

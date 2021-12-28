@@ -1,6 +1,6 @@
 from pathlib import Path
 from unittest import TestCase
-import datetime
+from datetime import datetime, timezone
 from osrparse import (parse_replay, parse_replay_file, ReplayEventOsu, GameMode,
     Mod, ReplayEventTaiko, ReplayEventCatch, ReplayEventMania)
 
@@ -60,7 +60,7 @@ class TestStandardReplay(TestCase):
 
     def test_timestamp(self):
         for replay in self._replays:
-            self.assertEqual(replay.timestamp, datetime.datetime(2013, 2, 1, 16, 31, 34), "Timestamp is wrong")
+            self.assertEqual(replay.timestamp, datetime(2013, 2, 1, 16, 31, 34, tzinfo=timezone.utc), "Timestamp is wrong")
 
     def test_play_data(self):
         for replay in self._replays:
