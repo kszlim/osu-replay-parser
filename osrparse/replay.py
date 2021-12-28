@@ -2,6 +2,7 @@ import lzma
 import struct
 from datetime import datetime, timezone, timedelta
 from typing import List
+from io import TextIOWrapper
 
 from osrparse.utils import (Mod, GameMode, ReplayEvent, ReplayEventOsu,
     ReplayEventCatch, ReplayEventMania, ReplayEventTaiko)
@@ -182,7 +183,12 @@ class Replay:
     def dump(self, file=None):
         dumped = dump_replay(self)
 
-        if file:
-            file.write(dumped)
+        if not file:
+            return dumped
 
-        return dumped
+        # allow either a live file object, or a path to a file
+        if isinstance(file, TextIOWrapper):
+            file.write(dumped)
+        else:
+            with open(file, "wb") as f:
+                f.write(dumped)
