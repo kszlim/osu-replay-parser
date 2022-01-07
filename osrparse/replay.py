@@ -5,7 +5,8 @@ from typing import List
 from io import TextIOWrapper
 
 from osrparse.utils import (Mod, GameMode, ReplayEvent, ReplayEventOsu,
-    ReplayEventCatch, ReplayEventMania, ReplayEventTaiko)
+    ReplayEventCatch, ReplayEventMania, ReplayEventTaiko, Key, KeyMania,
+    KeyTaiko)
 from osrparse.dump import dump_replay
 
 class Replay:
@@ -123,15 +124,22 @@ class Replay:
         datastring = lzma.decompress(replay_data[self.offset:offset_end], format=lzma.FORMAT_AUTO).decode('ascii')[:-1]
         events = [eventstring.split('|') for eventstring in datastring.split(',')]
 
-        if self.game_mode is GameMode.STD:
-            self.play_data = [ReplayEventOsu(int(event[0]), float(event[1]), float(event[2]), int(event[3])) for event in events]
-        if self.game_mode is GameMode.TAIKO:
-            self.play_data = [ReplayEventTaiko(int(event[0]), float(event[1]), int(event[3])) for event in events]
-        if self.game_mode is GameMode.CTB:
-            self.play_data = [ReplayEventCatch(int(event[0]), float(event[1]), int(event[3])) for event in events]
-        if self.game_mode is GameMode.MANIA:
-            self.play_data = [ReplayEventMania(int(event[0]), int(event[1])) for event in events]
+        self.play_data = []
+        for event in events:
+            time_delta = int(event[0])
+            x = event[1]
+            y = event[2]
+            keys = int(event[3])
 
+            if self.game_mode is GameMode.STD:
+                event = ReplayEventOsu(time_delta, float(x), float(y), Key(keys))
+            if self.game_mode is GameMode.TAIKO:
+                event = ReplayEventTaiko(time_delta, int(x), KeyTaiko(keys))
+            if self.game_mode is GameMode.CTB:
+                event = ReplayEventCatch(time_delta, float(x), int(keys) == 1)
+            if self.game_mode is GameMode.MANIA:
+                event = ReplayEventMania(time_delta, KeyMania(keys))
+            self.play_data.append(event)
         self.offset = offset_end
 
         if self.game_version >= self.LAST_FRAME_SEED_VERSION and self.play_data:

@@ -1,5 +1,5 @@
 from enum import Enum, IntFlag
-import abc
+from dataclasses import dataclass
 
 class GameMode(Enum):
     STD    = 0
@@ -78,72 +78,28 @@ class KeyMania(IntFlag):
 # the reference I used for non-std replay events below:
 # https://github.com/kszlim/osu-replay-parser/pull/27#issuecomment-845679072.
 
-class ReplayEvent(abc.ABC):
-    def __init__(self, time_delta: int):
-        self.time_delta = time_delta
+@dataclass
+class ReplayEvent:
+    time_delta: int
 
-    @abc.abstractmethod
-    def _members(self):
-        pass
-
-    def __eq__(self, other):
-        if not isinstance(other, ReplayEvent):
-            return False
-        return all(m1 == m2 for m1, m2 in zip(self._members(), other._members()))
-
-    def __hash__(self):
-        return hash(self._members())
-
+@dataclass
 class ReplayEventOsu(ReplayEvent):
-    def __init__(self, time_delta: int, x: float, y: float,
-        keys: int):
-        super().__init__(time_delta)
-        self.x = x
-        self.y = y
-        self.keys = Key(keys)
+    x: float
+    y: float
+    keys: Key
 
-    def __str__(self):
-        return (f"{self.time_delta} ({self.x}, {self.y}) "
-            f"{self.keys}")
-
-    def _members(self):
-        return (self.time_delta, self.x, self.y, self.keys)
-
+@dataclass
 class ReplayEventTaiko(ReplayEvent):
-    def __init__(self, time_delta: int, x: int, keys: int):
-        super().__init__(time_delta)
-        # we have no idea what this is supposed to represent. It's always one
-        # of 0, 320, or 640, depending on ``keys``. Leaving untouched for now.
-        self.x = x
-        self.keys = KeyTaiko(keys)
+    # we have no idea what this is supposed to represent. It's always one of 0,
+    # 320, or 640, depending on `keys`. Leaving untouched for now.
+    x: int
+    keys: KeyTaiko
 
-    def __str__(self):
-        return f"{self.time_delta} {self.x} {self.keys}"
-
-    def _members(self):
-        return (self.time_delta, self.x, self.keys)
-
+@dataclass
 class ReplayEventCatch(ReplayEvent):
-    def __init__(self, time_delta: int, x: int, keys: int):
-        super().__init__(time_delta)
-        self.x = x
-        self.dashing = keys == 1
+    x: float
+    dashing: bool
 
-    def __str__(self):
-        return f"{self.time_delta} {self.x} {self.dashing}"
-
-    def _members(self):
-        return (self.time_delta, self.x, self.dashing)
-
+@dataclass
 class ReplayEventMania(ReplayEvent):
-    def __init__(self, time_delta: int, x: int):
-        super().__init__(time_delta)
-        # no, this isn't a typo. osu! really stores keys pressed inside ``x``
-        # for mania.
-        self.keys = KeyMania(x)
-
-    def __str__(self):
-        return f"{self.time_delta} {self.keys}"
-
-    def _members(self):
-        return (self.time_delta, self.keys)
+    keys: KeyMania
