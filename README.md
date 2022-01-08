@@ -25,7 +25,7 @@ replay = Replay.from_path("path/to/osr.osr")
 
 # or from an opened file object
 with open("path/to/osr.osr") as f:
-    replay = Replay.from_file()
+    replay = Replay.from_file(f)
 
 # or from a string
 with open("path/to/osr.osr") as f:
@@ -76,9 +76,9 @@ dumped = replay.dump()
 You can also edit osr files by parsing a replay, editing an attribute, and dumping it back to its file:
 
 ```python
-replay = parse_replay_file("path/to/osr.osr")
-replay.player_name = "fake username"
-replay.dump(""path/to/osr.osr")
+replay = Replay.from_path("path/to/osr.osr")
+replay.username = "fake username"
+replay.write_path("path/to/osr.osr")
 ```
 
 ### Attributes
