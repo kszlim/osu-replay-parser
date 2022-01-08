@@ -108,7 +108,7 @@ self.replay_id          # int
 self.rng_seed           # int or None
 # list of either ReplayEventOsu, ReplayEventTaiko, ReplayEventCatch,
 # or ReplayEventMania objects, depending on self.game_mode
-self.play_data
+self.replay_data
 ```
 
 `ReplayEventOsu` objects have the following attributes:
