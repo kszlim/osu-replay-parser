@@ -47,18 +47,27 @@ def dump_timestamp(replay):
 
 def dump_replay_data(replay):
     replay_data = ""
-    for event in replay.play_data:
+    for event in replay.replay_data:
+        t = event.time_delta
         if isinstance(event, ReplayEventOsu):
-            replay_data += f"{event.time_delta}|{event.x}|{event.y}|{event.keys.value},"
+            replay_data += f"{t}|{event.x}|{event.y}|{event.keys.value},"
         elif isinstance(event, ReplayEventTaiko):
-            replay_data += f"{event.time_delta}|{event.x}|0|{event.keys.value},"
+            replay_data += f"{t}|{event.x}|0|{event.keys.value},"
         elif isinstance(event, ReplayEventCatch):
-            replay_data += f"{event.time_delta}|{event.x}|0|{int(event.dashing)},"
+            replay_data += f"{t}|{event.x}|0|{int(event.dashing)},"
         elif isinstance(event, ReplayEventMania):
-            replay_data += f"{event.time_delta}|{event.keys}|0|0,"
+            replay_data += f"{t}|{event.keys.value}|0|0,"
 
-    filters = [{"id": lzma.FILTER_LZMA1, "dict_size": 1 << 21, "mode": lzma.MODE_FAST}]
-    compressed = lzma.compress(replay_data.encode("ascii"), format=lzma.FORMAT_ALONE, filters=filters)
+    filters = [
+        {
+            "id": lzma.FILTER_LZMA1,
+            "dict_size": 1 << 21,
+            "mode": lzma.MODE_FAST
+        }
+    ]
+    replay_data = replay_data.encode("ascii")
+    compressed = lzma.compress(replay_data, format=lzma.FORMAT_ALONE,
+        filters=filters)
 
     return pack_int(len(compressed)) + compressed
 
@@ -66,25 +75,25 @@ def dump_replay_data(replay):
 def dump_replay(replay):
     data = b""
 
-    data += pack_byte(replay.game_mode.value)
+    data += pack_byte(replay.mode.value)
     data += pack_int(replay.game_version)
     data += pack_string(replay.beatmap_hash)
 
-    data += pack_string(replay.player_name)
+    data += pack_string(replay.username)
     data += pack_string(replay.replay_hash)
 
-    data += pack_short(replay.number_300s)
-    data += pack_short(replay.number_100s)
-    data += pack_short(replay.number_50s)
-    data += pack_short(replay.gekis)
-    data += pack_short(replay.katus)
-    data += pack_short(replay.misses)
+    data += pack_short(replay.count_300)
+    data += pack_short(replay.count_100)
+    data += pack_short(replay.count_50)
+    data += pack_short(replay.count_geki)
+    data += pack_short(replay.count_katu)
+    data += pack_short(replay.count_miss)
 
     data += pack_int(replay.score)
     data += pack_short(replay.max_combo)
-    data += pack_byte(replay.is_perfect_combo)
+    data += pack_byte(replay.perfect)
 
-    data += pack_int(replay.mod_combination.value)
+    data += pack_int(replay.mods.value)
     data += pack_string(replay.life_bar_graph)
     data += dump_timestamp(replay)
 

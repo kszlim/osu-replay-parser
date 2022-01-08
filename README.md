@@ -17,36 +17,60 @@ pip install osrparse
 
 ### Parsing
 
-To parse a replay from a filepath:
+To parse a replay:
 
 ```python
-from osrparse import parse_replay_file
+from osrparse import Replay
+replay = Replay.from_path("path/to/osr.osr")
 
-# returns a Replay object
-replay = parse_replay_file("path/to/osr.osr")
+# or from an opened file object
+with open("path/to/osr.osr") as f:
+    replay = Replay.from_file()
+
+# or from a string
+with open("path/to/osr.osr") as f:
+    replay_string = f.read()
+replay = Replay.from_string(replay_string)
 ```
 
-To parse a replay from an lzma string (such as the one returned from the `/get_replay` osu! api endpoint):
+To parse only the `replay_data` portion of a `Replay`, such as the data returned from the api `/get_replay` endpoint:
 
 ```python
-from osrparse import parse_replay
+from osrparse import parse_replay_data
+import base64
+import lzma
 
-# returns a Replay object that only has a `play_data` attribute
-replay = parse_replay(lzma_string, pure_lzma=True)
+lzma_string = retrieve_from_api()
+replay_data = parse_replay_data(lzma_string)
+assert isinstance(replay_data[0], ReplayEvent)
+
+# or parse an already decoded lzma string
+lzma_string = retrieve_from_api()
+lzma_string = base64.b64decode(lzma_string)
+replay_data = parse_replay_data(lzma_string, decoded=True)
+
+# or parse an already decoded and decompressed lzma string
+lzma_string = retrieve_from_api()
+lzma_string = base64.b64decode(lzma_string)
+lzma_string = lzma.decompress(lzma_string).decode("ascii")
+replay_data = parse_replay_data(lzma_string, decompressed=True)
 ```
 
-Note that if you use the `/get_replay` endpoint to retrieve a replay, you must decode the response before passing it to osrparse, as the response is encoded in base 64 by default.
+The response returned from `/get_replay` is base 64 encoded, which is why we provide automatic decoding in `parse_replay_data`. If you are retrieving this data from a different source where the replay data is already decoded, pass `decoded=True`.
 
-### Dumping
+### Writing
 
-Existing `Replay` objects can be "dumped" back to a `.osr` file:
+Existing `Replay` objects can be written back to `.osr` files:
 
 ```python
+replay.write_path("path/to/osr.osr")
 
-replay.dump("path/to/osr.osr")
 # or to an opened file object
 with open("path/to/osr.osr") as f:
-    replay.dump(f)
+    replay.write_file(f)
+
+# or to a string
+dumped = replay.dump()
 ```
 
 You can also edit osr files by parsing a replay, editing an attribute, and dumping it back to its file:
@@ -62,23 +86,26 @@ replay.dump(""path/to/osr.osr")
 `Replay` objects have the following attibutes:
 
 ```python
-self.game_mode        # GameMode enum
-self.game_version     # int
-self.beatmap_hash     # str
-self.player_name      # str
-self.replay_hash      # str
-self.number_300s      # int
-self.number_100s      # int
-self.number_50s       # int
-self.gekis            # int
-self.katus            # int
-self.misses           # int
-self.score            # int
-self.max_combo        # int
-self.is_perfect_combo # bool
-self.mod_combination  # Mod enum
-self.life_bar_graph   # str, currently unparsed
-self.timestamp        # datetime.datetime object
+self.mode               # GameMode
+self.game_version       # int
+self.beatmap_hash       # str
+self.username           # str
+self.replay_hash        # str
+self.count_300          # int
+self.count_100          # int
+self.count_50           # int
+self.count_geki         # int
+self.count_katu         # int
+self.count_miss         # int
+self.score              # int
+self.max_combo          # int
+self.perfect            # bool
+self.mods               # Mod
+self.life_bar_graph     # str or None
+self.timestamp          # datetime
+self.replay_data        # List[ReplayEvent]
+self.replay_id          # int
+self.rng_seed           # int or None
 # list of either ReplayEventOsu, ReplayEventTaiko, ReplayEventCatch,
 # or ReplayEventMania objects, depending on self.game_mode
 self.play_data
@@ -113,7 +140,7 @@ self.dashing    # bool, whether the player was dashing or not
 
 ```python
 self.time_delta # int, time since previous event in milliseconds
-self.keys       # KeyMania enum
+self.keys       # KeyMania enum, keys pressed
 ```
 
 The `Key` enums used in the above `ReplayEvent`s are defined as follows:
