@@ -1,12 +1,3 @@
-# CHANGELOG:
-# * number_{300, 100, 50}s -> count_{300, 100, 50}
-# * {geki, katu, misses} -> {count_geki, count_katu, count_miss}
-# * is_perfect_combo -> perfect
-# * game_mode -> mode
-# * player_name -> username
-# * play_data -> replay_data
-# * added rng_seed
-
 import lzma
 import struct
 from datetime import datetime, timezone, timedelta
