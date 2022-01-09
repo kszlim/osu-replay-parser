@@ -70,7 +70,7 @@ with open("path/to/osr.osr") as f:
     replay.write_file(f)
 
 # or to a string
-dumped = replay.dump()
+packed = replay.pack()
 ```
 
 You can also edit osr files by parsing a replay, editing an attribute, and dumping it back to its file:
