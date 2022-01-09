@@ -205,6 +205,9 @@ class _Packer:
             elif isinstance(event, ReplayEventMania):
                 replay_data += f"{t}|{event.keys.value}|0|0,"
 
+        if self.replay.rng_seed:
+            replay_data += f"-12345|0|0|{self.replay.rng_seed},"
+
         filters = [
             {
                 "id": lzma.FILTER_LZMA1,
