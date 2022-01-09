@@ -248,7 +248,7 @@ class Replay:
         """
         return _Unpacker(data).unpack()
 
-    def write_path(self, path):
+    def write_path(self, path, *, dict_size=None, mode=None):
         """
         Writes the replay to the given ``path``.
 
@@ -264,9 +264,9 @@ class Replay:
         an attribute, then writing the replay back to its file.
         """
         with open(path, "wb") as f:
-            self.write_file(f)
+            self.write_file(f, dict_size=dict_size, mode=mode)
 
-    def write_file(self, file):
+    def write_file(self, file, *, dict_size=None, mode=None):
         """
         Writes the replay to an open file object.
 
@@ -275,10 +275,10 @@ class Replay:
         file: file-like
            The file object to write to.
         """
-        dumped = self.dump()
+        dumped = self.dump(dict_size=dict_size, mode=mode)
         file.write(dumped)
 
-    def dump(self):
+    def dump(self, *, dict_size=None, mode=None):
         """
         Returns the text representing this ``Replay``, in ``.osr`` format.
         The text returned by this method is suitable for writing to a file as a
@@ -289,7 +289,7 @@ class Replay:
         str
             The text representing this ``Replay``, in ``.osr`` format.
         """
-        return dump_replay(self)
+        return dump_replay(self, dict_size=dict_size, mode=mode)
 
 
 def parse_replay_data(data_string, *, decoded=False, decompressed=False,

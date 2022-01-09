@@ -45,7 +45,7 @@ def dump_timestamp(replay):
     return pack_long(ticks)
 
 
-def dump_replay_data(replay):
+def dump_replay_data(replay, *, dict_size=None, mode=None):
     replay_data = ""
     for event in replay.replay_data:
         t = event.time_delta
@@ -61,8 +61,8 @@ def dump_replay_data(replay):
     filters = [
         {
             "id": lzma.FILTER_LZMA1,
-            "dict_size": 1 << 21,
-            "mode": lzma.MODE_FAST
+            "dict_size": dict_size or 1 << 21,
+            "mode": mode or lzma.MODE_FAST
         }
     ]
     replay_data = replay_data.encode("ascii")
@@ -72,7 +72,7 @@ def dump_replay_data(replay):
     return pack_int(len(compressed)) + compressed
 
 
-def dump_replay(replay):
+def dump_replay(replay, *, dict_size=None, mode=None):
     data = b""
 
     data += pack_byte(replay.mode.value)
@@ -97,7 +97,7 @@ def dump_replay(replay):
     data += pack_string(replay.life_bar_graph)
     data += dump_timestamp(replay)
 
-    data += dump_replay_data(replay)
+    data += dump_replay_data(replay, dict_size=dict_size, mode=mode)
     data += pack_long(replay.replay_id)
 
     return data
