@@ -3,6 +3,7 @@ import struct
 from datetime import datetime, timezone, timedelta
 from typing import List, Optional
 import base64
+from dataclasses import dataclass
 
 from osrparse.utils import (Mod, GameMode, ReplayEvent, ReplayEventOsu,
     ReplayEventCatch, ReplayEventMania, ReplayEventTaiko, Key, KeyMania,
@@ -249,54 +250,33 @@ class _Packer:
         return data
 
 
+@dataclass
 class Replay:
     """
     A replay found in a ``.osr`` file, or following the osr format. To create a
     replay, you likely want ``Replay.from_path``, ``Replay.from_file``, or
     ``Replay.from_string``.
     """
-    def __init__(self,
-        mode: GameMode,
-        game_version: int,
-        beatmap_hash: str,
-        username: str,
-        replay_hash: str,
-        count_300: int,
-        count_100: int,
-        count_50: int,
-        count_geki: int,
-        count_katu: int,
-        count_miss: int,
-        score: int,
-        max_combo: int,
-        perfect: bool,
-        mods: Mod,
-        life_bar_graph: Optional[str],
-        timestamp: datetime,
-        replay_data: List[ReplayEvent],
-        replay_id: int,
-        rng_seed: Optional[int]
-    ):
-        self.mode = mode
-        self.game_version = game_version
-        self.beatmap_hash = beatmap_hash
-        self.username = username
-        self.replay_hash = replay_hash
-        self.count_300 = count_300
-        self.count_100 = count_100
-        self.count_50 = count_50
-        self.count_geki = count_geki
-        self.count_katu = count_katu
-        self.count_miss = count_miss
-        self.score = score
-        self.max_combo = max_combo
-        self.perfect = perfect
-        self.mods = mods
-        self.life_bar_graph = life_bar_graph
-        self.timestamp = timestamp
-        self.replay_data = replay_data
-        self.replay_id = replay_id
-        self.rng_seed = rng_seed
+    mode: GameMode
+    game_version: int
+    beatmap_hash: str
+    username: str
+    replay_hash: str
+    count_300: int
+    count_100: int
+    count_50: int
+    count_geki: int
+    count_katu: int
+    count_miss: int
+    score: int
+    max_combo: int
+    perfect: bool
+    mods: Mod
+    life_bar_graph: Optional[str]
+    timestamp: datetime
+    replay_data: List[ReplayEvent]
+    replay_id: int
+    rng_seed: Optional[int]
 
     @staticmethod
     def from_path(path):
