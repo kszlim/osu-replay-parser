@@ -7,7 +7,7 @@ import base64
 from osrparse.utils import (Mod, GameMode, ReplayEvent, ReplayEventOsu,
     ReplayEventCatch, ReplayEventMania, ReplayEventTaiko, Key, KeyMania,
     KeyTaiko)
-from osrparse.dump import dump_replay
+
 
 class _Unpacker:
     """
@@ -144,6 +144,107 @@ class _Unpacker:
             timestamp, play_data, replay_id, rng_seed)
 
 
+class _Packer:
+
+    def __init__(self, replay, *, dict_size=None, mode=None):
+        self.replay = replay
+        self.dict_size = dict_size or 1 << 21
+        self.mode = mode or lzma.MODE_FAST
+
+    def pack_byte(self, data):
+        return struct.pack("<B", data)
+
+    def pack_short(self, data):
+        return struct.pack("<H", data)
+
+    def pack_int(self, data):
+        return struct.pack("<I", data)
+
+    def pack_long(self, data):
+        return struct.pack("<Q", data)
+
+    def pack_ULEB128(self, data):
+        # https://github.com/mohanson/leb128
+        r, i = [], len(data)
+
+        while True:
+            byte = i & 0x7f
+            i = i >> 7
+
+            if (i == 0 and byte & 0x40 == 0) or (i == -1 and byte & 0x40 != 0):
+                r.append(byte)
+                return b"".join(map(self.pack_byte, r))
+
+            r.append(0x80 | byte)
+
+    def pack_string(self, data):
+        if data:
+            return (self.pack_byte(11) + self.pack_ULEB128(data) +
+                data.encode("utf-8"))
+        return self.pack_byte(11) + self.pack_byte(0)
+
+    def pack_timestamp(self):
+        # windows ticks starts at year 0001, in contrast to unix time (1970).
+        # 62135596800 is the number of seconds between these two years and is
+        # added to account for this difference.
+        # The factor of 10000000 converts seconds to ticks.
+        ticks = (62135596800 + self.replay.timestamp.timestamp()) * 10000000
+        ticks = int(ticks)
+        return self.pack_long(ticks)
+
+    def pack_replay_data(self):
+        replay_data = ""
+        for event in self.replay.replay_data:
+            t = event.time_delta
+            if isinstance(event, ReplayEventOsu):
+                replay_data += f"{t}|{event.x}|{event.y}|{event.keys.value},"
+            elif isinstance(event, ReplayEventTaiko):
+                replay_data += f"{t}|{event.x}|0|{event.keys.value},"
+            elif isinstance(event, ReplayEventCatch):
+                replay_data += f"{t}|{event.x}|0|{int(event.dashing)},"
+            elif isinstance(event, ReplayEventMania):
+                replay_data += f"{t}|{event.keys.value}|0|0,"
+
+        filters = [
+            {
+                "id": lzma.FILTER_LZMA1,
+                "dict_size": self.dict_size,
+                "mode": self.mode
+            }
+        ]
+        replay_data = replay_data.encode("ascii")
+        compressed = lzma.compress(replay_data, format=lzma.FORMAT_ALONE,
+            filters=filters)
+
+        return self.pack_int(len(compressed)) + compressed
+
+
+    def pack(self):
+        r = self.replay
+        data = b""
+
+        data += self.pack_byte(r.mode.value)
+        data += self.pack_int(r.game_version)
+        data += self.pack_string(r.beatmap_hash)
+        data += self.pack_string(r.username)
+        data += self.pack_string(r.replay_hash)
+        data += self.pack_short(r.count_300)
+        data += self.pack_short(r.count_100)
+        data += self.pack_short(r.count_50)
+        data += self.pack_short(r.count_geki)
+        data += self.pack_short(r.count_katu)
+        data += self.pack_short(r.count_miss)
+        data += self.pack_int(r.score)
+        data += self.pack_short(r.max_combo)
+        data += self.pack_byte(r.perfect)
+        data += self.pack_int(r.mods.value)
+        data += self.pack_string(r.life_bar_graph)
+        data += self.pack_timestamp()
+        data += self.pack_replay_data()
+        data += self.pack_long(r.replay_id)
+
+        return data
+
 
 class Replay:
     """
@@ -275,10 +376,10 @@ class Replay:
         file: file-like
            The file object to write to.
         """
-        dumped = self.dump(dict_size=dict_size, mode=mode)
-        file.write(dumped)
+        packed = self.pack(dict_size=dict_size, mode=mode)
+        file.write(packed)
 
-    def dump(self, *, dict_size=None, mode=None):
+    def pack(self, *, dict_size=None, mode=None):
         """
         Returns the text representing this ``Replay``, in ``.osr`` format.
         The text returned by this method is suitable for writing to a file as a
@@ -289,7 +390,7 @@ class Replay:
         str
             The text representing this ``Replay``, in ``.osr`` format.
         """
-        return dump_replay(self, dict_size=dict_size, mode=mode)
+        return _Packer(self, dict_size=dict_size, mode=mode).pack()
 
 
 def parse_replay_data(data_string, *, decoded=False, decompressed=False,
