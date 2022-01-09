@@ -135,7 +135,7 @@ class _Unpacker:
 
         rng_seed = None
         if play_data[-1].time_delta == -12345:
-            rng_seed = play_data[-1]
+            rng_seed = play_data[-1].keys.value
             del play_data[-1]
 
         return Replay(mode, game_version, beatmap_hash, username,
