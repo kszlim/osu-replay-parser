@@ -103,3 +103,8 @@ class ReplayEventCatch(ReplayEvent):
 @dataclass
 class ReplayEventMania(ReplayEvent):
     keys: KeyMania
+
+@dataclass
+class LifeBarState:
+    time: int
+    life: float

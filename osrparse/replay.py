@@ -7,8 +7,7 @@ from dataclasses import dataclass
 
 from osrparse.utils import (Mod, GameMode, ReplayEvent, ReplayEventOsu,
     ReplayEventCatch, ReplayEventMania, ReplayEventTaiko, Key, KeyMania,
-    KeyTaiko)
-
+    KeyTaiko, LifeBarState)
 
 class _Unpacker:
     """
@@ -113,6 +112,29 @@ class _Unpacker:
             replay_id = self.unpack_once("l")
         return replay_id
 
+    def unpack_life_bar(self):
+        data = self.unpack_string()
+        graph = []
+
+        if not data:
+            return []
+        
+        data = [x.split(",") for x in data.split("|")]
+        
+        # it seems like many replays have a graph starting with time, without the life state
+        # and then at the end of the graph, the life state without a time is there
+        # just in case, i am checking for them and adding None to values that are lacking
+        
+        for index, state in enumerate(data):
+            if index == 0:
+                graph.append(LifeBarState(int(state[0]), None))
+            elif index == len(data) - 1:
+                graph.append(LifeBarState(None, int(state[0])))
+            else:
+                graph.append(LifeBarState(int(state[1]), float(state[0])))
+        
+        return graph
+    
     def unpack(self):
         mode = GameMode(self.unpack_once("b"))
         game_version = self.unpack_once("i")
@@ -129,7 +151,7 @@ class _Unpacker:
         max_combo = self.unpack_once("h")
         perfect = self.unpack_once("?")
         mods = Mod(self.unpack_once("i"))
-        life_bar_graph = self.unpack_string()
+        life_bar_graph = self.unpack_life_bar()
         timestamp = self.unpack_timestamp()
         play_data = self.unpack_play_data(mode)
         replay_id = self.unpack_replay_id()
@@ -144,9 +166,7 @@ class _Unpacker:
             count_miss, score, max_combo, perfect, mods, life_bar_graph,
             timestamp, play_data, replay_id, rng_seed)
 
-
 class _Packer:
-
     def __init__(self, replay, *, dict_size=None, mode=None):
         self.replay = replay
         self.dict_size = dict_size or 1 << 21
@@ -184,30 +204,50 @@ class _Packer:
                 data.encode("utf-8"))
         return self.pack_byte(11) + self.pack_byte(0)
 
-    def pack_timestamp(self):
+    def pack_timestamp(self, date):
         # windows ticks starts at year 0001, in contrast to unix time (1970).
         # 62135596800 is the number of seconds between these two years and is
         # added to account for this difference.
         # The factor of 10000000 converts seconds to ticks.
-        ticks = (62135596800 + self.replay.timestamp.timestamp()) * 10000000
+        
+        ticks = (62135596800 + date.timestamp()) * 10000000
         ticks = int(ticks)
         return self.pack_long(ticks)
 
-    def pack_replay_data(self):
-        replay_data = ""
-        for event in self.replay.replay_data:
+    def pack_life_bar(self, graph):
+        text = ""
+        for state in graph:
+            if state.life is None:
+                text += f"{state.time}|"
+                continue
+            
+            if int(state.life) == state.life: # checking if time is actually a fraction (osu! wants an integer for 0 or 1)
+                life = int(state.life)
+            else:
+                life = state.life
+            
+            if state.time is None:
+                text += f"{life},"
+            else:
+                text += f"{life},{state.time}|"
+        
+        return self.pack_string(text)
+    
+    def pack_replay_data(self, replay_data):
+        data = ""
+        for event in replay_data:
             t = event.time_delta
             if isinstance(event, ReplayEventOsu):
-                replay_data += f"{t}|{event.x}|{event.y}|{event.keys.value},"
+                data += f"{t}|{event.x}|{event.y}|{event.keys.value},"
             elif isinstance(event, ReplayEventTaiko):
-                replay_data += f"{t}|{event.x}|0|{event.keys.value},"
+                data += f"{t}|{event.x}|0|{event.keys.value},"
             elif isinstance(event, ReplayEventCatch):
-                replay_data += f"{t}|{event.x}|0|{int(event.dashing)},"
+                data += f"{t}|{event.x}|0|{int(event.dashing)},"
             elif isinstance(event, ReplayEventMania):
-                replay_data += f"{t}|{event.keys.value}|0|0,"
+                data += f"{t}|{event.keys.value}|0|0,"
 
         if self.replay.rng_seed:
-            replay_data += f"-12345|0|0|{self.replay.rng_seed},"
+            data += f"-12345|0|0|{self.replay.rng_seed},"
 
         filters = [
             {
@@ -216,12 +256,12 @@ class _Packer:
                 "mode": self.mode
             }
         ]
-        replay_data = replay_data.encode("ascii")
-        compressed = lzma.compress(replay_data, format=lzma.FORMAT_ALONE,
+        
+        data = data.encode("ascii")
+        compressed = lzma.compress(data, format=lzma.FORMAT_ALONE,
             filters=filters)
 
         return self.pack_int(len(compressed)) + compressed
-
 
     def pack(self):
         r = self.replay
@@ -242,13 +282,12 @@ class _Packer:
         data += self.pack_short(r.max_combo)
         data += self.pack_byte(r.perfect)
         data += self.pack_int(r.mods.value)
-        data += self.pack_string(r.life_bar_graph)
-        data += self.pack_timestamp()
-        data += self.pack_replay_data()
+        data += self.pack_life_bar(r.life_bar_graph)
+        data += self.pack_timestamp(r.timestamp)
+        data += self.pack_replay_data(r.replay_data)
         data += self.pack_long(r.replay_id)
 
         return data
-
 
 @dataclass
 class Replay:
@@ -272,7 +311,7 @@ class Replay:
     max_combo: int
     perfect: bool
     mods: Mod
-    life_bar_graph: Optional[str]
+    life_bar_graph: Optional[List[LifeBarState]]
     timestamp: datetime
     replay_data: List[ReplayEvent]
     replay_id: int
@@ -374,7 +413,6 @@ class Replay:
             The text representing this ``Replay``, in ``.osr`` format.
         """
         return _Packer(self, dict_size=dict_size, mode=mode).pack()
-
 
 def parse_replay_data(data_string, *, decoded=False, decompressed=False,
     mode=GameMode.STD) -> List[ReplayEvent]:
