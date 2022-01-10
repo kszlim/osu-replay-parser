@@ -9,6 +9,7 @@ from osrparse.utils import (Mod, GameMode, ReplayEvent, ReplayEventOsu,
     ReplayEventCatch, ReplayEventMania, ReplayEventTaiko, Key, KeyMania,
     KeyTaiko, LifeBarState)
 
+
 class _Unpacker:
     """
     Helper class for dealing with the ``.osr`` format. Not intended to be used
@@ -118,13 +119,14 @@ class _Unpacker:
 
         if not data:
             return []
-        
+
         data = [x.split(",") for x in data.split("|")]
-        
-        # it seems like many replays have a graph starting with time, without the life state
-        # and then at the end of the graph, the life state without a time is there
-        # just in case, i am checking for them and adding None to values that are lacking
-        
+
+        # it seems like many replays have a graph starting with time, without
+        # the life state and then at the end of the graph, the life state
+        # without a time is there just in case, i am checking for them and
+        # adding None to values that are lacking
+
         for index, state in enumerate(data):
             if index == 0:
                 graph.append(LifeBarState(int(state[0]), None))
@@ -132,9 +134,9 @@ class _Unpacker:
                 graph.append(LifeBarState(None, int(state[0])))
             else:
                 graph.append(LifeBarState(int(state[1]), float(state[0])))
-        
+
         return graph
-    
+
     def unpack(self):
         mode = GameMode(self.unpack_once("b"))
         game_version = self.unpack_once("i")
@@ -165,6 +167,7 @@ class _Unpacker:
             replay_hash, count_300, count_100, count_50, count_geki, count_katu,
             count_miss, score, max_combo, perfect, mods, life_bar_graph,
             timestamp, play_data, replay_id, rng_seed)
+
 
 class _Packer:
     def __init__(self, replay, *, dict_size=None, mode=None):
@@ -209,7 +212,7 @@ class _Packer:
         # 62135596800 is the number of seconds between these two years and is
         # added to account for this difference.
         # The factor of 10000000 converts seconds to ticks.
-        
+
         ticks = (62135596800 + date.timestamp()) * 10000000
         ticks = int(ticks)
         return self.pack_long(ticks)
@@ -220,19 +223,21 @@ class _Packer:
             if state.life is None:
                 text += f"{state.time}|"
                 continue
-            
-            if int(state.life) == state.life: # checking if time is actually a fraction (osu! wants an integer for 0 or 1)
+
+            # checking if time is actually a fraction (osu! wants an integer for
+            # 0 or 1)
+            if int(state.life) == state.life:
                 life = int(state.life)
             else:
                 life = state.life
-            
+
             if state.time is None:
                 text += f"{life},"
             else:
                 text += f"{life},{state.time}|"
-        
+
         return self.pack_string(text)
-    
+
     def pack_replay_data(self, replay_data):
         data = ""
         for event in replay_data:
@@ -256,7 +261,7 @@ class _Packer:
                 "mode": self.mode
             }
         ]
-        
+
         data = data.encode("ascii")
         compressed = lzma.compress(data, format=lzma.FORMAT_ALONE,
             filters=filters)
@@ -288,6 +293,7 @@ class _Packer:
         data += self.pack_long(r.replay_id)
 
         return data
+
 
 @dataclass
 class Replay:
@@ -413,6 +419,7 @@ class Replay:
             The text representing this ``Replay``, in ``.osr`` format.
         """
         return _Packer(self, dict_size=dict_size, mode=mode).pack()
+
 
 def parse_replay_data(data_string, *, decoded=False, decompressed=False,
     mode=GameMode.STD) -> List[ReplayEvent]:
