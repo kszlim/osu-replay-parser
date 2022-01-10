@@ -205,9 +205,9 @@ class _Packer:
         return self.pack_long(ticks)
 
     def pack_life_bar(self):
-        text = ""
+        data = ""
         if self.replay.life_bar_graph is None:
-            return self.pack_string(text)
+            return self.pack_string(data)
 
         for state in self.replay.life_bar_graph:
             life = state.life
@@ -215,9 +215,9 @@ class _Packer:
             if int(life) == life:
                 life = int(state.life)
 
-            text += f"{state.time}|{life},"
+            data += f"{state.time}|{life},"
 
-        return self.pack_string(text)
+        return self.pack_string(data)
 
     def pack_replay_data(self):
         data = ""
