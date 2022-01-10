@@ -66,9 +66,9 @@ class _Unpacker:
         data = self.replay_data[self.offset:offset_end]
         data = lzma.decompress(data, format=lzma.FORMAT_AUTO)
         data = data.decode("ascii")
-        replay_data = self.parse_replay_data(data, mode)
+        (replay_data, rng_seed) = self.parse_replay_data(data, mode)
         self.offset = offset_end
-        return replay_data
+        return (replay_data, rng_seed)
 
     @staticmethod
     def parse_replay_data(replay_data_str, mode):
@@ -76,12 +76,17 @@ class _Unpacker:
         replay_data_str = replay_data_str[:-1]
         events = [event.split('|') for event in replay_data_str.split(',')]
 
+        rng_seed = None
         play_data = []
         for event in events:
             time_delta = int(event[0])
             x = event[1]
             y = event[2]
             keys = int(event[3])
+
+            if time_delta == -12345 and event == events[-1]:
+                rng_seed = keys
+                continue
 
             if mode is GameMode.STD:
                 keys = Key(keys)
@@ -92,9 +97,10 @@ class _Unpacker:
                 event = ReplayEventCatch(time_delta, float(x), int(keys) == 1)
             if mode is GameMode.MANIA:
                 event = ReplayEventMania(time_delta, KeyMania(keys))
+
             play_data.append(event)
 
-        return play_data
+        return (play_data, rng_seed)
 
     def unpack_replay_id(self):
         # old replays had replay_id stored as a short (4 bytes) instead of a
@@ -131,18 +137,13 @@ class _Unpacker:
         mods = Mod(self.unpack_once("i"))
         life_bar_graph = self.unpack_string()
         timestamp = self.unpack_timestamp()
-        play_data = self.unpack_play_data(mode)
+        (replay_data, rng_seed) = self.unpack_play_data(mode)
         replay_id = self.unpack_replay_id()
-
-        rng_seed = None
-        if play_data[-1].time_delta == -12345:
-            rng_seed = play_data[-1].keys.value
-            del play_data[-1]
 
         return Replay(mode, game_version, beatmap_hash, username,
             replay_hash, count_300, count_100, count_50, count_geki, count_katu,
             count_miss, score, max_combo, perfect, mods, life_bar_graph,
-            timestamp, play_data, replay_id, rng_seed)
+            timestamp, replay_data, replay_id, rng_seed)
 
 
 class _Packer:
@@ -414,4 +415,5 @@ def parse_replay_data(data_string, *, decoded=False, decompressed=False,
     if not decompressed:
         data_string = lzma.decompress(data_string, format=lzma.FORMAT_AUTO)
         data_string = data_string.decode("ascii")
-    return _Unpacker.parse_replay_data(data_string, mode)
+    (replay_data, _seed) = _Unpacker.parse_replay_data(data_string, mode)
+    return replay_data
