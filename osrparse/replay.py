@@ -115,9 +115,8 @@ class _Unpacker:
 
     def unpack_life_bar(self):
         life_bar = self.unpack_string()
-
         if not life_bar:
-            return []
+            return None
 
         # remove trailing comma to make splitting easier
         life_bar = life_bar[:-1]
@@ -195,40 +194,34 @@ class _Packer:
                 data.encode("utf-8"))
         return self.pack_byte(11) + self.pack_byte(0)
 
-    def pack_timestamp(self, date):
+    def pack_timestamp(self):
         # windows ticks starts at year 0001, in contrast to unix time (1970).
         # 62135596800 is the number of seconds between these two years and is
         # added to account for this difference.
         # The factor of 10000000 converts seconds to ticks.
 
-        ticks = (62135596800 + date.timestamp()) * 10000000
+        ticks = (62135596800 + self.replay.timestamp.timestamp()) * 10000000
         ticks = int(ticks)
         return self.pack_long(ticks)
 
-    def pack_life_bar(self, graph):
+    def pack_life_bar(self):
         text = ""
-        for state in graph:
-            if state.life is None:
-                text += f"{state.time}|"
-                continue
+        if self.replay.life_bar_graph is None:
+            return self.pack_string(text)
 
-            # checking if time is actually a fraction (osu! wants an integer for
-            # 0 or 1)
-            if int(state.life) == state.life:
+        for state in self.replay.life_bar_graph:
+            life = state.life
+            # store 0 or 1 instead of 0.0 or 1.0
+            if int(life) == life:
                 life = int(state.life)
-            else:
-                life = state.life
 
-            if state.time is None:
-                text += f"{life},"
-            else:
-                text += f"{life},{state.time}|"
+            text += f"{state.time}|{life},"
 
         return self.pack_string(text)
 
-    def pack_replay_data(self, replay_data):
+    def pack_replay_data(self):
         data = ""
-        for event in replay_data:
+        for event in self.replay.replay_data:
             t = event.time_delta
             if isinstance(event, ReplayEventOsu):
                 data += f"{t}|{event.x}|{event.y}|{event.keys.value},"
@@ -275,9 +268,9 @@ class _Packer:
         data += self.pack_short(r.max_combo)
         data += self.pack_byte(r.perfect)
         data += self.pack_int(r.mods.value)
-        data += self.pack_life_bar(r.life_bar_graph)
-        data += self.pack_timestamp(r.timestamp)
-        data += self.pack_replay_data(r.replay_data)
+        data += self.pack_life_bar()
+        data += self.pack_timestamp()
+        data += self.pack_replay_data()
         data += self.pack_long(r.replay_id)
 
         return data
