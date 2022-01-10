@@ -7,7 +7,7 @@ from dataclasses import dataclass
 
 from osrparse.utils import (Mod, GameMode, ReplayEvent, ReplayEventOsu,
     ReplayEventCatch, ReplayEventMania, ReplayEventTaiko, Key, KeyMania,
-    KeyTaiko)
+    KeyTaiko, LifeBarState)
 
 
 class _Unpacker:
@@ -119,6 +119,17 @@ class _Unpacker:
             replay_id = self.unpack_once("l")
         return replay_id
 
+    def unpack_life_bar(self):
+        life_bar = self.unpack_string()
+        if not life_bar:
+            return None
+
+        # remove trailing comma to make splitting easier
+        life_bar = life_bar[:-1]
+        states = [state.split("|") for state in life_bar.split(",")]
+
+        return [LifeBarState(int(s[0]), float(s[1])) for s in states]
+
     def unpack(self):
         mode = GameMode(self.unpack_once("b"))
         game_version = self.unpack_once("i")
@@ -135,7 +146,7 @@ class _Unpacker:
         max_combo = self.unpack_once("h")
         perfect = self.unpack_once("?")
         mods = Mod(self.unpack_once("i"))
-        life_bar_graph = self.unpack_string()
+        life_bar_graph = self.unpack_life_bar()
         timestamp = self.unpack_timestamp()
         (replay_data, rng_seed) = self.unpack_play_data(mode)
         replay_id = self.unpack_replay_id()
@@ -147,7 +158,6 @@ class _Unpacker:
 
 
 class _Packer:
-
     def __init__(self, replay, *, dict_size=None, mode=None):
         self.replay = replay
         self.dict_size = dict_size or 1 << 21
@@ -190,25 +200,41 @@ class _Packer:
         # 62135596800 is the number of seconds between these two years and is
         # added to account for this difference.
         # The factor of 10000000 converts seconds to ticks.
+
         ticks = (62135596800 + self.replay.timestamp.timestamp()) * 10000000
         ticks = int(ticks)
         return self.pack_long(ticks)
 
+    def pack_life_bar(self):
+        data = ""
+        if self.replay.life_bar_graph is None:
+            return self.pack_string(data)
+
+        for state in self.replay.life_bar_graph:
+            life = state.life
+            # store 0 or 1 instead of 0.0 or 1.0
+            if int(life) == life:
+                life = int(state.life)
+
+            data += f"{state.time}|{life},"
+
+        return self.pack_string(data)
+
     def pack_replay_data(self):
-        replay_data = ""
+        data = ""
         for event in self.replay.replay_data:
             t = event.time_delta
             if isinstance(event, ReplayEventOsu):
-                replay_data += f"{t}|{event.x}|{event.y}|{event.keys.value},"
+                data += f"{t}|{event.x}|{event.y}|{event.keys.value},"
             elif isinstance(event, ReplayEventTaiko):
-                replay_data += f"{t}|{event.x}|0|{event.keys.value},"
+                data += f"{t}|{event.x}|0|{event.keys.value},"
             elif isinstance(event, ReplayEventCatch):
-                replay_data += f"{t}|{event.x}|0|{int(event.dashing)},"
+                data += f"{t}|{event.x}|0|{int(event.dashing)},"
             elif isinstance(event, ReplayEventMania):
-                replay_data += f"{t}|{event.keys.value}|0|0,"
+                data += f"{t}|{event.keys.value}|0|0,"
 
         if self.replay.rng_seed:
-            replay_data += f"-12345|0|0|{self.replay.rng_seed},"
+            data += f"-12345|0|0|{self.replay.rng_seed},"
 
         filters = [
             {
@@ -217,12 +243,12 @@ class _Packer:
                 "mode": self.mode
             }
         ]
-        replay_data = replay_data.encode("ascii")
-        compressed = lzma.compress(replay_data, format=lzma.FORMAT_ALONE,
+
+        data = data.encode("ascii")
+        compressed = lzma.compress(data, format=lzma.FORMAT_ALONE,
             filters=filters)
 
         return self.pack_int(len(compressed)) + compressed
-
 
     def pack(self):
         r = self.replay
@@ -243,7 +269,7 @@ class _Packer:
         data += self.pack_short(r.max_combo)
         data += self.pack_byte(r.perfect)
         data += self.pack_int(r.mods.value)
-        data += self.pack_string(r.life_bar_graph)
+        data += self.pack_life_bar()
         data += self.pack_timestamp()
         data += self.pack_replay_data()
         data += self.pack_long(r.replay_id)
@@ -273,7 +299,7 @@ class Replay:
     max_combo: int
     perfect: bool
     mods: Mod
-    life_bar_graph: Optional[str]
+    life_bar_graph: Optional[List[LifeBarState]]
     timestamp: datetime
     replay_data: List[ReplayEvent]
     replay_id: int
