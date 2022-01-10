@@ -114,28 +114,16 @@ class _Unpacker:
         return replay_id
 
     def unpack_life_bar(self):
-        data = self.unpack_string()
-        graph = []
+        life_bar = self.unpack_string()
 
-        if not data:
+        if not life_bar:
             return []
 
-        data = [x.split(",") for x in data.split("|")]
+        # remove trailing comma to make splitting easier
+        life_bar = life_bar[:-1]
+        states = [state.split("|") for state in life_bar.split(",")]
 
-        # it seems like many replays have a graph starting with time, without
-        # the life state and then at the end of the graph, the life state
-        # without a time is there just in case, i am checking for them and
-        # adding None to values that are lacking
-
-        for index, state in enumerate(data):
-            if index == 0:
-                graph.append(LifeBarState(int(state[0]), None))
-            elif index == len(data) - 1:
-                graph.append(LifeBarState(None, int(state[0])))
-            else:
-                graph.append(LifeBarState(int(state[1]), float(state[0])))
-
-        return graph
+        return [LifeBarState(int(s[0]), float(s[1])) for s in states]
 
     def unpack(self):
         mode = GameMode(self.unpack_once("b"))
