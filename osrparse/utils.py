@@ -2,12 +2,18 @@ from enum import Enum, IntFlag
 from dataclasses import dataclass
 
 class GameMode(Enum):
+    """
+    An osu! game mode.
+    """
     STD    = 0
     TAIKO  = 1
     CTB    = 2
     MANIA  = 3
 
 class Mod(IntFlag):
+    """
+    An osu! mod, or combination of mods.
+    """
     NoMod       =  0
     NoFail      =  1 << 0
     Easy        =  1 << 1
@@ -42,6 +48,10 @@ class Mod(IntFlag):
     Mirror      =  1 << 30
 
 class Key(IntFlag):
+    """
+    A key that can be pressed during osu!standard gameplay - mouse 1 and 2, key
+    1 and 2, and smoke.
+    """
     M1    = 1 << 0
     M2    = 1 << 1
     K1    = 1 << 2
@@ -49,12 +59,18 @@ class Key(IntFlag):
     SMOKE = 1 << 4
 
 class KeyTaiko(IntFlag):
+    """
+    A key that can be pressed during osu!taiko gameplay.
+    """
     LEFT_DON  = 1 << 0
     LEFT_KAT  = 1 << 1
     RIGHT_DON = 1 << 2
     RIGHT_KAT = 1 << 3
 
 class KeyMania(IntFlag):
+    """
+    A key that can be pressed during osu!mania gameplay
+    """
     K1 = 1 << 0
     K2 = 1 << 1
     K3 = 1 << 2
@@ -80,16 +96,25 @@ class KeyMania(IntFlag):
 
 @dataclass
 class ReplayEvent:
+    """
+    Base class for an event (ie a frame) in a replay.
+    """
     time_delta: int
 
 @dataclass
 class ReplayEventOsu(ReplayEvent):
+    """
+    A single frame in an osu!standard replay.
+    """
     x: float
     y: float
     keys: Key
 
 @dataclass
 class ReplayEventTaiko(ReplayEvent):
+    """
+    A single frame in an osu!taiko replay.
+    """
     # we have no idea what this is supposed to represent. It's always one of 0,
     # 320, or 640, depending on `keys`. Leaving untouched for now.
     x: int
@@ -97,14 +122,23 @@ class ReplayEventTaiko(ReplayEvent):
 
 @dataclass
 class ReplayEventCatch(ReplayEvent):
+    """
+    A single frame in an osu!catch replay.
+    """
     x: float
     dashing: bool
 
 @dataclass
 class ReplayEventMania(ReplayEvent):
+    """
+    A single frame in an osu!mania replay.
+    """
     keys: KeyMania
 
 @dataclass
 class LifeBarState:
+    """
+    A state of the lifebar shown on the results screen.
+    """
     time: int
     life: float
