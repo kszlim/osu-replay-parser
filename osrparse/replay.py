@@ -283,6 +283,49 @@ class Replay:
     A replay found in a ``.osr`` file, or following the osr format. To create a
     replay, you likely want ``Replay.from_path``, ``Replay.from_file``, or
     ``Replay.from_string``.
+
+    Attributes
+    ----------
+    mode: GameMode
+        The game mode this replay was played on.
+    game_version: int
+        The game version this replay was played on.
+    beatmap_hash: str
+        The hash of the beatmap this replay was played on.
+    username: str
+        The user that played this replay.
+    replay_hash:
+        The hash of this replay.
+    count_300: int
+        The number of 300 judgments in this replay.
+    count_100: int
+        The number of 100 judgments in this replay.
+    count_50: int
+        The number of 50 judgments in this replay.
+    count_geki: int
+        The number of geki judgments in this replay.
+    count_katu: int
+        The number of katu judgments in this replay.
+    count_miss: int
+        The number of misses in this replay.
+    score: int
+        The score of this replay.
+    max_combo: int
+        The maximum combo attained in this replay.
+    perfect: bool
+        Whether this replay was perfect or not.
+    mods: Mod
+        The mods this replay was played with.
+    life_bar_graph: Optional[List[LifeBarState]]
+        The life bar of this replay over time.
+    replay_data: List[ReplayEvent]
+        The replay data of the replay, including cursor position and keys
+        pressed.
+    replay_id: int
+        The replay id of this replay, or 0 if not submitted.
+    rng_seed: Optional[int]
+        The rng seed of this replay, or ``None`` if not present (typically not
+        present on older replays).
     """
     mode: GameMode
     game_version: int

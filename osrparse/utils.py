@@ -98,6 +98,11 @@ class KeyMania(IntFlag):
 class ReplayEvent:
     """
     Base class for an event (ie a frame) in a replay.
+
+    Attributes
+    ----------
+    time_delta: int
+        The time since the previous event (ie frame).
     """
     time_delta: int
 
@@ -105,6 +110,17 @@ class ReplayEvent:
 class ReplayEventOsu(ReplayEvent):
     """
     A single frame in an osu!standard replay.
+
+    Attributes
+    ----------
+    time_delta: int
+        The time since the previous event (ie frame).
+    x: float
+        The x position of the cursor.
+    y: float
+        The y position of the cursor.
+    keys: Key
+        The keys pressed.
     """
     x: float
     y: float
@@ -114,6 +130,16 @@ class ReplayEventOsu(ReplayEvent):
 class ReplayEventTaiko(ReplayEvent):
     """
     A single frame in an osu!taiko replay.
+
+    Attributes
+    ----------
+    time_delta: int
+        The time since the previous event (ie frame).
+    x: int
+        Unknown what this represents. Always one of 0, 320, or 640, depending on
+        ``keys``.
+    keys: KeyTaiko
+        The keys pressed.
     """
     # we have no idea what this is supposed to represent. It's always one of 0,
     # 320, or 640, depending on `keys`. Leaving untouched for now.
@@ -124,6 +150,15 @@ class ReplayEventTaiko(ReplayEvent):
 class ReplayEventCatch(ReplayEvent):
     """
     A single frame in an osu!catch replay.
+
+    Attributes
+    ----------
+    time_delta: int
+        The time since the previous event (ie frame).
+    x: float
+        The x position of the player.
+    dashing: bool
+        Whether we are dashing or not.
     """
     x: float
     dashing: bool
@@ -132,13 +167,29 @@ class ReplayEventCatch(ReplayEvent):
 class ReplayEventMania(ReplayEvent):
     """
     A single frame in an osu!mania replay.
+
+    Attributes
+    ----------
+    time_delta: int
+        The time since the previous event (ie frame).
+    keys: KeyMania
+        The keys pressed.
     """
     keys: KeyMania
 
 @dataclass
 class LifeBarState:
     """
-    A state of the lifebar shown on the results screen.
+    A state of the lifebar shown on the results screen, at a particular point in
+    time.
+
+    Attributes
+    ----------
+    time: int
+        The time, in ms, this life bar state corresponds to in the replay.
+        The time since the previous event (ie frame).
+    life: float
+        The amount of life at this life bar state.
     """
     time: int
     life: float
