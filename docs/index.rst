@@ -1,7 +1,7 @@
 osrparse
 ==========
 
-osrparse is a parse for the ``.osr`` format described `here <https://osu.ppy.sh/wiki/en/Client/File_formats/Osr_%28file_format%29>`__.
+osrparse is a parser for the ``.osr`` format, as described `on the osu! wiki <https://osu.ppy.sh/wiki/en/Client/File_formats/Osr_%28file_format%29>`__.
 
 osrparse is maintained by:
 
