@@ -1,13 +1,19 @@
 from enum import Enum, IntFlag
-import abc
+from dataclasses import dataclass
 
 class GameMode(Enum):
+    """
+    An osu! game mode.
+    """
     STD    = 0
     TAIKO  = 1
     CTB    = 2
     MANIA  = 3
 
 class Mod(IntFlag):
+    """
+    An osu! mod, or combination of mods.
+    """
     NoMod       =  0
     NoFail      =  1 << 0
     Easy        =  1 << 1
@@ -42,6 +48,10 @@ class Mod(IntFlag):
     Mirror      =  1 << 30
 
 class Key(IntFlag):
+    """
+    A key that can be pressed during osu!standard gameplay - mouse 1 and 2, key
+    1 and 2, and smoke.
+    """
     M1    = 1 << 0
     M2    = 1 << 1
     K1    = 1 << 2
@@ -49,12 +59,18 @@ class Key(IntFlag):
     SMOKE = 1 << 4
 
 class KeyTaiko(IntFlag):
+    """
+    A key that can be pressed during osu!taiko gameplay.
+    """
     LEFT_DON  = 1 << 0
     LEFT_KAT  = 1 << 1
     RIGHT_DON = 1 << 2
     RIGHT_KAT = 1 << 3
 
 class KeyMania(IntFlag):
+    """
+    A key that can be pressed during osu!mania gameplay
+    """
     K1 = 1 << 0
     K2 = 1 << 1
     K3 = 1 << 2
@@ -78,72 +94,102 @@ class KeyMania(IntFlag):
 # the reference I used for non-std replay events below:
 # https://github.com/kszlim/osu-replay-parser/pull/27#issuecomment-845679072.
 
-class ReplayEvent(abc.ABC):
-    def __init__(self, time_delta: int):
-        self.time_delta = time_delta
+@dataclass
+class ReplayEvent:
+    """
+    Base class for an event (ie a frame) in a replay.
 
-    @abc.abstractmethod
-    def _members(self):
-        pass
+    Attributes
+    ----------
+    time_delta: int
+        The time since the previous event (ie frame).
+    """
+    time_delta: int
 
-    def __eq__(self, other):
-        if not isinstance(other, ReplayEvent):
-            return False
-        return all(m1 == m2 for m1, m2 in zip(self._members(), other._members()))
-
-    def __hash__(self):
-        return hash(self._members())
-
+@dataclass
 class ReplayEventOsu(ReplayEvent):
-    def __init__(self, time_delta: int, x: float, y: float,
-        keys: int):
-        super().__init__(time_delta)
-        self.x = x
-        self.y = y
-        self.keys = Key(keys)
+    """
+    A single frame in an osu!standard replay.
 
-    def __str__(self):
-        return (f"{self.time_delta} ({self.x}, {self.y}) "
-            f"{self.keys}")
+    Attributes
+    ----------
+    time_delta: int
+        The time since the previous event (ie frame).
+    x: float
+        The x position of the cursor.
+    y: float
+        The y position of the cursor.
+    keys: Key
+        The keys pressed.
+    """
+    x: float
+    y: float
+    keys: Key
 
-    def _members(self):
-        return (self.time_delta, self.x, self.y, self.keys)
-
+@dataclass
 class ReplayEventTaiko(ReplayEvent):
-    def __init__(self, time_delta: int, x: int, keys: int):
-        super().__init__(time_delta)
-        # we have no idea what this is supposed to represent. It's always one
-        # of 0, 320, or 640, depending on ``keys``. Leaving untouched for now.
-        self.x = x
-        self.keys = KeyTaiko(keys)
+    """
+    A single frame in an osu!taiko replay.
 
-    def __str__(self):
-        return f"{self.time_delta} {self.x} {self.keys}"
+    Attributes
+    ----------
+    time_delta: int
+        The time since the previous event (ie frame).
+    x: int
+        Unknown what this represents. Always one of 0, 320, or 640, depending on
+        ``keys``.
+    keys: KeyTaiko
+        The keys pressed.
+    """
+    # we have no idea what this is supposed to represent. It's always one of 0,
+    # 320, or 640, depending on `keys`. Leaving untouched for now.
+    x: int
+    keys: KeyTaiko
 
-    def _members(self):
-        return (self.time_delta, self.x, self.keys)
-
+@dataclass
 class ReplayEventCatch(ReplayEvent):
-    def __init__(self, time_delta: int, x: int, keys: int):
-        super().__init__(time_delta)
-        self.x = x
-        self.dashing = keys == 1
+    """
+    A single frame in an osu!catch replay.
 
-    def __str__(self):
-        return f"{self.time_delta} {self.x} {self.dashing}"
+    Attributes
+    ----------
+    time_delta: int
+        The time since the previous event (ie frame).
+    x: float
+        The x position of the player.
+    dashing: bool
+        Whether we are dashing or not.
+    """
+    x: float
+    dashing: bool
 
-    def _members(self):
-        return (self.time_delta, self.x, self.dashing)
-
+@dataclass
 class ReplayEventMania(ReplayEvent):
-    def __init__(self, time_delta: int, x: int):
-        super().__init__(time_delta)
-        # no, this isn't a typo. osu! really stores keys pressed inside ``x``
-        # for mania.
-        self.keys = KeyMania(x)
+    """
+    A single frame in an osu!mania replay.
 
-    def __str__(self):
-        return f"{self.time_delta} {self.keys}"
+    Attributes
+    ----------
+    time_delta: int
+        The time since the previous event (ie frame).
+    keys: KeyMania
+        The keys pressed.
+    """
+    keys: KeyMania
 
-    def _members(self):
-        return (self.time_delta, self.keys)
+@dataclass
+class LifeBarState:
+    """
+    A state of the lifebar shown on the results screen, at a particular point in
+    time.
+
+    Attributes
+    ----------
+    time: int
+        The time, in ms, this life bar state corresponds to in the replay.
+        The time since the previous event (ie frame).
+    life: float
+        The amount of life at this life bar state.
+    """
+    time: int
+    life: float

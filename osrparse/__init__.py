@@ -1,12 +1,10 @@
 from osrparse.utils import (GameMode, Mod, Key, ReplayEvent, ReplayEventOsu,
     ReplayEventTaiko, ReplayEventMania, ReplayEventCatch, KeyTaiko, KeyMania)
-from osrparse.parse import parse_replay_file, parse_replay
-from osrparse.replay import Replay
+from osrparse.replay import Replay, parse_replay_data
 
-__version__ = "5.0.0"
+__version__ = "6.0.0"
 
 
-__all__ = ["GameMode", "Mod", "parse_replay_file", "parse_replay", 
-    "Replay", "ReplayEvent", "Key",
+__all__ = ["GameMode", "Mod", "Replay", "ReplayEvent", "Key",
     "ReplayEventOsu", "ReplayEventTaiko", "ReplayEventMania",
-    "ReplayEventCatch", "KeyTaiko", "KeyMania"]
+    "ReplayEventCatch", "KeyTaiko", "KeyMania", "parse_replay_data"]
