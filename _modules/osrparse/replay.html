@@ -1,0 +1,646 @@
+<!doctype html>
+<html class="no-js">
+  <head><meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width,initial-scale=1"/>
+    <meta name="color-scheme" content="light dark"><link rel="index" title="Index" href="../../genindex.html" /><link rel="search" title="Search" href="../../search.html" />
+
+    <meta name="generator" content="sphinx-3.5.2, furo 2021.03.20.beta30"/>
+        <title>osrparse.replay - osrparse v6.0.0 documentation</title>
+      <link rel="stylesheet" href="../../_static/styles/furo.css?digest=978e1795dfe158b585dda6a8417f6411828bf3ed">
+    <link rel="stylesheet" href="../../_static/pygments.css">
+    <link media="(prefers-color-scheme: dark)" rel="stylesheet" href="../../_static/pygments_dark.css">
+    
+
+
+<style>
+  :root {
+    --color-code-background: #f8f8f8;
+  --color-code-foreground: black;
+  
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+    }
+  }
+
+  /* For allowing end-user-specific overrides */
+  .override-light {
+    --color-code-background: #f8f8f8;
+  --color-code-foreground: black;
+  
+  }
+  .override-dark {
+    --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+  }
+</style><link rel="stylesheet" href="../../_static/styles/furo-extensions.css?digest=d391b54134226e4196576da3bdb6dddb7e05ba2b"></head>
+  <body dir="">
+    
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+      stroke-width="1.5" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+      <path stroke="none" d="M0 0h24v24H0z"/>
+      <line x1="4" y1="6" x2="20" y2="6" />
+      <line x1="10" y1="12" x2="20" y2="12" />
+      <line x1="6" y1="18" x2="20" y2="18" />
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+      class="feather feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+      class="feather feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc">
+<label class="overlay sidebar-overlay" for="__navigation"></label>
+<label class="overlay toc-overlay" for="__toc"></label>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <i class="icon"><svg><use href="#svg-menu"></use></svg></i>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="../../index.html"><div class="brand">osrparse v6.0.0 documentation</div></a>
+    </div>
+    <div class="header-right">
+      <label class="toc-overlay-icon toc-header-icon no-toc" for="__toc">
+        <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a class="sidebar-brand" href="../../index.html">
+  
+  
+  <span class="sidebar-brand-text">osrparse v6.0.0 documentation</span>
+  
+</a><form class="sidebar-search-container" method="get" action="../../search.html">
+  <input class="sidebar-search" placeholder=Search name="q">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form><div class="sidebar-scroll"><div class="sidebar-tree">
+  <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../index.html">osrparse</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../parsing-replays.html">Parsing Replays</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../writing-replays.html">Writing Replays</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../appendix.html">Appendix</a></li>
+</ul>
+
+</div>
+</div>
+      </div>
+      
+    </div>
+  </aside>
+  <main class="main">
+    <div class="content">
+      <article role="main">
+        <label class="toc-overlay-icon toc-content-icon no-toc" for="__toc">
+          <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
+        </label>
+        <h1>Source code for osrparse.replay</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">lzma</span>
+<span class="kn">import</span> <span class="nn">struct</span>
+<span class="kn">from</span> <span class="nn">datetime</span> <span class="kn">import</span> <span class="n">datetime</span><span class="p">,</span> <span class="n">timezone</span><span class="p">,</span> <span class="n">timedelta</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span>
+<span class="kn">import</span> <span class="nn">base64</span>
+<span class="kn">from</span> <span class="nn">dataclasses</span> <span class="kn">import</span> <span class="n">dataclass</span>
+
+<span class="kn">from</span> <span class="nn">osrparse.utils</span> <span class="kn">import</span> <span class="p">(</span><span class="n">Mod</span><span class="p">,</span> <span class="n">GameMode</span><span class="p">,</span> <span class="n">ReplayEvent</span><span class="p">,</span> <span class="n">ReplayEventOsu</span><span class="p">,</span>
+    <span class="n">ReplayEventCatch</span><span class="p">,</span> <span class="n">ReplayEventMania</span><span class="p">,</span> <span class="n">ReplayEventTaiko</span><span class="p">,</span> <span class="n">Key</span><span class="p">,</span> <span class="n">KeyMania</span><span class="p">,</span>
+    <span class="n">KeyTaiko</span><span class="p">,</span> <span class="n">LifeBarState</span><span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">_Unpacker</span><span class="p">:</span>
+    <span class="sd">"""</span>
+<span class="sd">    Helper class for dealing with the ``.osr`` format. Not intended to be used</span>
+<span class="sd">    by consumers.</span>
+<span class="sd">    """</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">replay_data</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">replay_data</span> <span class="o">=</span> <span class="n">replay_data</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">offset</span> <span class="o">=</span> <span class="mi">0</span>
+
+    <span class="k">def</span> <span class="nf">string_length</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">binarystream</span><span class="p">):</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">shift</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="n">byte</span> <span class="o">=</span> <span class="n">binarystream</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">offset</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">offset</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="n">result</span> <span class="o">|</span><span class="p">((</span><span class="n">byte</span> <span class="o">&amp;</span> <span class="mb">0b01111111</span><span class="p">)</span> <span class="o">&lt;&lt;</span> <span class="n">shift</span><span class="p">)</span>
+            <span class="k">if</span> <span class="p">(</span><span class="n">byte</span> <span class="o">&amp;</span> <span class="mb">0b10000000</span><span class="p">)</span> <span class="o">==</span> <span class="mh">0x00</span><span class="p">:</span>
+                <span class="k">break</span>
+            <span class="n">shift</span> <span class="o">+=</span> <span class="mi">7</span>
+        <span class="k">return</span> <span class="n">result</span>
+
+    <span class="k">def</span> <span class="nf">unpack_string</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">replay_data</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">offset</span><span class="p">]</span> <span class="o">==</span> <span class="mh">0x00</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">offset</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">replay_data</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">offset</span><span class="p">]</span> <span class="o">==</span> <span class="mh">0x0b</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">offset</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="n">string_length</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">string_length</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">replay_data</span><span class="p">)</span>
+            <span class="n">offset_end</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">offset</span> <span class="o">+</span> <span class="n">string_length</span>
+            <span class="n">string</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">replay_data</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">offset</span><span class="p">:</span><span class="n">offset_end</span><span class="p">]</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s2">"utf-8"</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">offset</span> <span class="o">=</span> <span class="n">offset_end</span>
+            <span class="k">return</span> <span class="n">string</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"Expected the first byte of a string to be 0x00 "</span>
+                <span class="sa">f</span><span class="s2">"or 0x0b, but got </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">replay_data</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">offset</span><span class="p">]</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">unpack_once</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">specifier</span><span class="p">):</span>
+        <span class="c1"># always use little endian</span>
+        <span class="n">specifier</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"&lt;</span><span class="si">{</span><span class="n">specifier</span><span class="si">}</span><span class="s2">"</span>
+        <span class="n">unpacked</span> <span class="o">=</span> <span class="n">struct</span><span class="o">.</span><span class="n">unpack_from</span><span class="p">(</span><span class="n">specifier</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">replay_data</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">offset</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">offset</span> <span class="o">+=</span> <span class="n">struct</span><span class="o">.</span><span class="n">calcsize</span><span class="p">(</span><span class="n">specifier</span><span class="p">)</span>
+        <span class="c1"># `struct.unpack_from` always returns a tuple, even if there's only one</span>
+        <span class="c1"># element</span>
+        <span class="k">return</span> <span class="n">unpacked</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">unpack_timestamp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">ticks</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">unpack_once</span><span class="p">(</span><span class="s2">"q"</span><span class="p">)</span>
+        <span class="n">timestamp</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">min</span> <span class="o">+</span> <span class="n">timedelta</span><span class="p">(</span><span class="n">microseconds</span><span class="o">=</span><span class="n">ticks</span><span class="o">/</span><span class="mi">10</span><span class="p">)</span>
+        <span class="n">timestamp</span> <span class="o">=</span> <span class="n">timestamp</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">tzinfo</span><span class="o">=</span><span class="n">timezone</span><span class="o">.</span><span class="n">utc</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">timestamp</span>
+
+    <span class="k">def</span> <span class="nf">unpack_play_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mode</span><span class="p">):</span>
+        <span class="n">replay_length</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">unpack_once</span><span class="p">(</span><span class="s2">"i"</span><span class="p">)</span>
+        <span class="n">offset_end</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">offset</span> <span class="o">+</span> <span class="n">replay_length</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">replay_data</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">offset</span><span class="p">:</span><span class="n">offset_end</span><span class="p">]</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">lzma</span><span class="o">.</span><span class="n">decompress</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="n">lzma</span><span class="o">.</span><span class="n">FORMAT_AUTO</span><span class="p">)</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s2">"ascii"</span><span class="p">)</span>
+        <span class="p">(</span><span class="n">replay_data</span><span class="p">,</span> <span class="n">rng_seed</span><span class="p">)</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parse_replay_data</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">mode</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">offset</span> <span class="o">=</span> <span class="n">offset_end</span>
+        <span class="k">return</span> <span class="p">(</span><span class="n">replay_data</span><span class="p">,</span> <span class="n">rng_seed</span><span class="p">)</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">parse_replay_data</span><span class="p">(</span><span class="n">replay_data_str</span><span class="p">,</span> <span class="n">mode</span><span class="p">):</span>
+        <span class="c1"># remove trailing comma to make splitting easier</span>
+        <span class="n">replay_data_str</span> <span class="o">=</span> <span class="n">replay_data_str</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">events</span> <span class="o">=</span> <span class="p">[</span><span class="n">event</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">'|'</span><span class="p">)</span> <span class="k">for</span> <span class="n">event</span> <span class="ow">in</span> <span class="n">replay_data_str</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">','</span><span class="p">)]</span>
+
+        <span class="n">rng_seed</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">play_data</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">event</span> <span class="ow">in</span> <span class="n">events</span><span class="p">:</span>
+            <span class="n">time_delta</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">event</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+            <span class="n">x</span> <span class="o">=</span> <span class="n">event</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+            <span class="n">y</span> <span class="o">=</span> <span class="n">event</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+            <span class="n">keys</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">event</span><span class="p">[</span><span class="mi">3</span><span class="p">])</span>
+
+            <span class="k">if</span> <span class="n">time_delta</span> <span class="o">==</span> <span class="o">-</span><span class="mi">12345</span> <span class="ow">and</span> <span class="n">event</span> <span class="o">==</span> <span class="n">events</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]:</span>
+                <span class="n">rng_seed</span> <span class="o">=</span> <span class="n">keys</span>
+                <span class="k">continue</span>
+
+            <span class="k">if</span> <span class="n">mode</span> <span class="ow">is</span> <span class="n">GameMode</span><span class="o">.</span><span class="n">STD</span><span class="p">:</span>
+                <span class="n">keys</span> <span class="o">=</span> <span class="n">Key</span><span class="p">(</span><span class="n">keys</span><span class="p">)</span>
+                <span class="n">event</span> <span class="o">=</span> <span class="n">ReplayEventOsu</span><span class="p">(</span><span class="n">time_delta</span><span class="p">,</span> <span class="nb">float</span><span class="p">(</span><span class="n">x</span><span class="p">),</span> <span class="nb">float</span><span class="p">(</span><span class="n">y</span><span class="p">),</span> <span class="n">keys</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">mode</span> <span class="ow">is</span> <span class="n">GameMode</span><span class="o">.</span><span class="n">TAIKO</span><span class="p">:</span>
+                <span class="n">event</span> <span class="o">=</span> <span class="n">ReplayEventTaiko</span><span class="p">(</span><span class="n">time_delta</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">x</span><span class="p">),</span> <span class="n">KeyTaiko</span><span class="p">(</span><span class="n">keys</span><span class="p">))</span>
+            <span class="k">if</span> <span class="n">mode</span> <span class="ow">is</span> <span class="n">GameMode</span><span class="o">.</span><span class="n">CTB</span><span class="p">:</span>
+                <span class="n">event</span> <span class="o">=</span> <span class="n">ReplayEventCatch</span><span class="p">(</span><span class="n">time_delta</span><span class="p">,</span> <span class="nb">float</span><span class="p">(</span><span class="n">x</span><span class="p">),</span> <span class="nb">int</span><span class="p">(</span><span class="n">keys</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">mode</span> <span class="ow">is</span> <span class="n">GameMode</span><span class="o">.</span><span class="n">MANIA</span><span class="p">:</span>
+                <span class="n">event</span> <span class="o">=</span> <span class="n">ReplayEventMania</span><span class="p">(</span><span class="n">time_delta</span><span class="p">,</span> <span class="n">KeyMania</span><span class="p">(</span><span class="n">keys</span><span class="p">))</span>
+
+            <span class="n">play_data</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">event</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="p">(</span><span class="n">play_data</span><span class="p">,</span> <span class="n">rng_seed</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">unpack_replay_id</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># old replays had replay_id stored as a short (4 bytes) instead of a</span>
+        <span class="c1"># long (8 bytes), so fall back to short if necessary.</span>
+        <span class="c1"># lazer checks against the gameversion before trying to parse as a</span>
+        <span class="c1"># short, but there may be some weirdness with replays that were set</span>
+        <span class="c1"># during this time but downloaded later having actually correct (long)</span>
+        <span class="c1"># replay_ids, since they were likely manually migrated at some point</span>
+        <span class="c1"># after the switch to long took place.</span>
+        <span class="c1"># See:</span>
+        <span class="c1"># https://github.com/ppy/osu/blob/84e1ff79a0736aa6c7a44804b585ab1c54a843</span>
+        <span class="c1"># 99/osu.Game/Scoring/Legacy/LegacyScoreDecoder.cs#L78-L81</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">replay_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">unpack_once</span><span class="p">(</span><span class="s2">"q"</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">struct</span><span class="o">.</span><span class="n">error</span><span class="p">:</span>
+            <span class="n">replay_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">unpack_once</span><span class="p">(</span><span class="s2">"l"</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">replay_id</span>
+
+    <span class="k">def</span> <span class="nf">unpack_life_bar</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">life_bar</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">unpack_string</span><span class="p">()</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">life_bar</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+
+        <span class="c1"># remove trailing comma to make splitting easier</span>
+        <span class="n">life_bar</span> <span class="o">=</span> <span class="n">life_bar</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">states</span> <span class="o">=</span> <span class="p">[</span><span class="n">state</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">"|"</span><span class="p">)</span> <span class="k">for</span> <span class="n">state</span> <span class="ow">in</span> <span class="n">life_bar</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">","</span><span class="p">)]</span>
+
+        <span class="k">return</span> <span class="p">[</span><span class="n">LifeBarState</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">s</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span> <span class="nb">float</span><span class="p">(</span><span class="n">s</span><span class="p">[</span><span class="mi">1</span><span class="p">]))</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">states</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">unpack</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">mode</span> <span class="o">=</span> <span class="n">GameMode</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">unpack_once</span><span class="p">(</span><span class="s2">"b"</span><span class="p">))</span>
+        <span class="n">game_version</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">unpack_once</span><span class="p">(</span><span class="s2">"i"</span><span class="p">)</span>
+        <span class="n">beatmap_hash</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">unpack_string</span><span class="p">()</span>
+        <span class="n">username</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">unpack_string</span><span class="p">()</span>
+        <span class="n">replay_hash</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">unpack_string</span><span class="p">()</span>
+        <span class="n">count_300</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">unpack_once</span><span class="p">(</span><span class="s2">"h"</span><span class="p">)</span>
+        <span class="n">count_100</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">unpack_once</span><span class="p">(</span><span class="s2">"h"</span><span class="p">)</span>
+        <span class="n">count_50</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">unpack_once</span><span class="p">(</span><span class="s2">"h"</span><span class="p">)</span>
+        <span class="n">count_geki</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">unpack_once</span><span class="p">(</span><span class="s2">"h"</span><span class="p">)</span>
+        <span class="n">count_katu</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">unpack_once</span><span class="p">(</span><span class="s2">"h"</span><span class="p">)</span>
+        <span class="n">count_miss</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">unpack_once</span><span class="p">(</span><span class="s2">"h"</span><span class="p">)</span>
+        <span class="n">score</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">unpack_once</span><span class="p">(</span><span class="s2">"i"</span><span class="p">)</span>
+        <span class="n">max_combo</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">unpack_once</span><span class="p">(</span><span class="s2">"h"</span><span class="p">)</span>
+        <span class="n">perfect</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">unpack_once</span><span class="p">(</span><span class="s2">"?"</span><span class="p">)</span>
+        <span class="n">mods</span> <span class="o">=</span> <span class="n">Mod</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">unpack_once</span><span class="p">(</span><span class="s2">"i"</span><span class="p">))</span>
+        <span class="n">life_bar_graph</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">unpack_life_bar</span><span class="p">()</span>
+        <span class="n">timestamp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">unpack_timestamp</span><span class="p">()</span>
+        <span class="p">(</span><span class="n">replay_data</span><span class="p">,</span> <span class="n">rng_seed</span><span class="p">)</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">unpack_play_data</span><span class="p">(</span><span class="n">mode</span><span class="p">)</span>
+        <span class="n">replay_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">unpack_replay_id</span><span class="p">()</span>
+
+        <span class="k">return</span> <span class="n">Replay</span><span class="p">(</span><span class="n">mode</span><span class="p">,</span> <span class="n">game_version</span><span class="p">,</span> <span class="n">beatmap_hash</span><span class="p">,</span> <span class="n">username</span><span class="p">,</span>
+            <span class="n">replay_hash</span><span class="p">,</span> <span class="n">count_300</span><span class="p">,</span> <span class="n">count_100</span><span class="p">,</span> <span class="n">count_50</span><span class="p">,</span> <span class="n">count_geki</span><span class="p">,</span> <span class="n">count_katu</span><span class="p">,</span>
+            <span class="n">count_miss</span><span class="p">,</span> <span class="n">score</span><span class="p">,</span> <span class="n">max_combo</span><span class="p">,</span> <span class="n">perfect</span><span class="p">,</span> <span class="n">mods</span><span class="p">,</span> <span class="n">life_bar_graph</span><span class="p">,</span>
+            <span class="n">timestamp</span><span class="p">,</span> <span class="n">replay_data</span><span class="p">,</span> <span class="n">replay_id</span><span class="p">,</span> <span class="n">rng_seed</span><span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">_Packer</span><span class="p">:</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">replay</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">dict_size</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">replay</span> <span class="o">=</span> <span class="n">replay</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dict_size</span> <span class="o">=</span> <span class="n">dict_size</span> <span class="ow">or</span> <span class="mi">1</span> <span class="o">&lt;&lt;</span> <span class="mi">21</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mode</span> <span class="o">=</span> <span class="n">mode</span> <span class="ow">or</span> <span class="n">lzma</span><span class="o">.</span><span class="n">MODE_FAST</span>
+
+    <span class="k">def</span> <span class="nf">pack_byte</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">struct</span><span class="o">.</span><span class="n">pack</span><span class="p">(</span><span class="s2">"&lt;B"</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">pack_short</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">struct</span><span class="o">.</span><span class="n">pack</span><span class="p">(</span><span class="s2">"&lt;H"</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">pack_int</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">struct</span><span class="o">.</span><span class="n">pack</span><span class="p">(</span><span class="s2">"&lt;I"</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">pack_long</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">struct</span><span class="o">.</span><span class="n">pack</span><span class="p">(</span><span class="s2">"&lt;Q"</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">pack_ULEB128</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
+        <span class="c1"># https://github.com/mohanson/leb128</span>
+        <span class="n">r</span><span class="p">,</span> <span class="n">i</span> <span class="o">=</span> <span class="p">[],</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+
+        <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="n">byte</span> <span class="o">=</span> <span class="n">i</span> <span class="o">&amp;</span> <span class="mh">0x7f</span>
+            <span class="n">i</span> <span class="o">=</span> <span class="n">i</span> <span class="o">&gt;&gt;</span> <span class="mi">7</span>
+
+            <span class="k">if</span> <span class="p">(</span><span class="n">i</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">byte</span> <span class="o">&amp;</span> <span class="mh">0x40</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span> <span class="ow">or</span> <span class="p">(</span><span class="n">i</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span> <span class="ow">and</span> <span class="n">byte</span> <span class="o">&amp;</span> <span class="mh">0x40</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">):</span>
+                <span class="n">r</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">byte</span><span class="p">)</span>
+                <span class="k">return</span> <span class="sa">b</span><span class="s2">""</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pack_byte</span><span class="p">,</span> <span class="n">r</span><span class="p">))</span>
+
+            <span class="n">r</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="mh">0x80</span> <span class="o">|</span> <span class="n">byte</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">pack_string</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">data</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pack_byte</span><span class="p">(</span><span class="mi">11</span><span class="p">)</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">pack_ULEB128</span><span class="p">(</span><span class="n">data</span><span class="p">)</span> <span class="o">+</span>
+                <span class="n">data</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s2">"utf-8"</span><span class="p">))</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">pack_byte</span><span class="p">(</span><span class="mi">11</span><span class="p">)</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">pack_byte</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">pack_timestamp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># windows ticks starts at year 0001, in contrast to unix time (1970).</span>
+        <span class="c1"># 62135596800 is the number of seconds between these two years and is</span>
+        <span class="c1"># added to account for this difference.</span>
+        <span class="c1"># The factor of 10000000 converts seconds to ticks.</span>
+
+        <span class="n">ticks</span> <span class="o">=</span> <span class="p">(</span><span class="mi">62135596800</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">replay</span><span class="o">.</span><span class="n">timestamp</span><span class="o">.</span><span class="n">timestamp</span><span class="p">())</span> <span class="o">*</span> <span class="mi">10000000</span>
+        <span class="n">ticks</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">ticks</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">pack_long</span><span class="p">(</span><span class="n">ticks</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">pack_life_bar</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="s2">""</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">replay</span><span class="o">.</span><span class="n">life_bar_graph</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">pack_string</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">state</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">replay</span><span class="o">.</span><span class="n">life_bar_graph</span><span class="p">:</span>
+            <span class="n">life</span> <span class="o">=</span> <span class="n">state</span><span class="o">.</span><span class="n">life</span>
+            <span class="c1"># store 0 or 1 instead of 0.0 or 1.0</span>
+            <span class="k">if</span> <span class="nb">int</span><span class="p">(</span><span class="n">life</span><span class="p">)</span> <span class="o">==</span> <span class="n">life</span><span class="p">:</span>
+                <span class="n">life</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">state</span><span class="o">.</span><span class="n">life</span><span class="p">)</span>
+
+            <span class="n">data</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">state</span><span class="o">.</span><span class="n">time</span><span class="si">}</span><span class="s2">|</span><span class="si">{</span><span class="n">life</span><span class="si">}</span><span class="s2">,"</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">pack_string</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">pack_replay_data</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="s2">""</span>
+        <span class="k">for</span> <span class="n">event</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">replay</span><span class="o">.</span><span class="n">replay_data</span><span class="p">:</span>
+            <span class="n">t</span> <span class="o">=</span> <span class="n">event</span><span class="o">.</span><span class="n">time_delta</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">event</span><span class="p">,</span> <span class="n">ReplayEventOsu</span><span class="p">):</span>
+                <span class="n">data</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">t</span><span class="si">}</span><span class="s2">|</span><span class="si">{</span><span class="n">event</span><span class="o">.</span><span class="n">x</span><span class="si">}</span><span class="s2">|</span><span class="si">{</span><span class="n">event</span><span class="o">.</span><span class="n">y</span><span class="si">}</span><span class="s2">|</span><span class="si">{</span><span class="n">event</span><span class="o">.</span><span class="n">keys</span><span class="o">.</span><span class="n">value</span><span class="si">}</span><span class="s2">,"</span>
+            <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">event</span><span class="p">,</span> <span class="n">ReplayEventTaiko</span><span class="p">):</span>
+                <span class="n">data</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">t</span><span class="si">}</span><span class="s2">|</span><span class="si">{</span><span class="n">event</span><span class="o">.</span><span class="n">x</span><span class="si">}</span><span class="s2">|0|</span><span class="si">{</span><span class="n">event</span><span class="o">.</span><span class="n">keys</span><span class="o">.</span><span class="n">value</span><span class="si">}</span><span class="s2">,"</span>
+            <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">event</span><span class="p">,</span> <span class="n">ReplayEventCatch</span><span class="p">):</span>
+                <span class="n">data</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">t</span><span class="si">}</span><span class="s2">|</span><span class="si">{</span><span class="n">event</span><span class="o">.</span><span class="n">x</span><span class="si">}</span><span class="s2">|0|</span><span class="si">{</span><span class="nb">int</span><span class="p">(</span><span class="n">event</span><span class="o">.</span><span class="n">dashing</span><span class="p">)</span><span class="si">}</span><span class="s2">,"</span>
+            <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">event</span><span class="p">,</span> <span class="n">ReplayEventMania</span><span class="p">):</span>
+                <span class="n">data</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">t</span><span class="si">}</span><span class="s2">|</span><span class="si">{</span><span class="n">event</span><span class="o">.</span><span class="n">keys</span><span class="o">.</span><span class="n">value</span><span class="si">}</span><span class="s2">|0|0,"</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">replay</span><span class="o">.</span><span class="n">rng_seed</span><span class="p">:</span>
+            <span class="n">data</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">"-12345|0|0|</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">replay</span><span class="o">.</span><span class="n">rng_seed</span><span class="si">}</span><span class="s2">,"</span>
+
+        <span class="n">filters</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="p">{</span>
+                <span class="s2">"id"</span><span class="p">:</span> <span class="n">lzma</span><span class="o">.</span><span class="n">FILTER_LZMA1</span><span class="p">,</span>
+                <span class="s2">"dict_size"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">dict_size</span><span class="p">,</span>
+                <span class="s2">"mode"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">mode</span>
+            <span class="p">}</span>
+        <span class="p">]</span>
+
+        <span class="n">data</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s2">"ascii"</span><span class="p">)</span>
+        <span class="n">compressed</span> <span class="o">=</span> <span class="n">lzma</span><span class="o">.</span><span class="n">compress</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="n">lzma</span><span class="o">.</span><span class="n">FORMAT_ALONE</span><span class="p">,</span>
+            <span class="n">filters</span><span class="o">=</span><span class="n">filters</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">pack_int</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">compressed</span><span class="p">))</span> <span class="o">+</span> <span class="n">compressed</span>
+
+    <span class="k">def</span> <span class="nf">pack</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">r</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">replay</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="sa">b</span><span class="s2">""</span>
+
+        <span class="n">data</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pack_byte</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">mode</span><span class="o">.</span><span class="n">value</span><span class="p">)</span>
+        <span class="n">data</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pack_int</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">game_version</span><span class="p">)</span>
+        <span class="n">data</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pack_string</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">beatmap_hash</span><span class="p">)</span>
+        <span class="n">data</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pack_string</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">username</span><span class="p">)</span>
+        <span class="n">data</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pack_string</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">replay_hash</span><span class="p">)</span>
+        <span class="n">data</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pack_short</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">count_300</span><span class="p">)</span>
+        <span class="n">data</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pack_short</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">count_100</span><span class="p">)</span>
+        <span class="n">data</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pack_short</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">count_50</span><span class="p">)</span>
+        <span class="n">data</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pack_short</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">count_geki</span><span class="p">)</span>
+        <span class="n">data</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pack_short</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">count_katu</span><span class="p">)</span>
+        <span class="n">data</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pack_short</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">count_miss</span><span class="p">)</span>
+        <span class="n">data</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pack_int</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">score</span><span class="p">)</span>
+        <span class="n">data</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pack_short</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">max_combo</span><span class="p">)</span>
+        <span class="n">data</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pack_byte</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">perfect</span><span class="p">)</span>
+        <span class="n">data</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pack_int</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">mods</span><span class="o">.</span><span class="n">value</span><span class="p">)</span>
+        <span class="n">data</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pack_life_bar</span><span class="p">()</span>
+        <span class="n">data</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pack_timestamp</span><span class="p">()</span>
+        <span class="n">data</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pack_replay_data</span><span class="p">()</span>
+        <span class="n">data</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pack_long</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">replay_id</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">data</span>
+
+
+<div class="viewcode-block" id="Replay"><a class="viewcode-back" href="../../appendix.html#osrparse.replay.Replay">[docs]</a><span class="nd">@dataclass</span>
+<span class="k">class</span> <span class="nc">Replay</span><span class="p">:</span>
+    <span class="sd">"""</span>
+<span class="sd">    A replay found in a ``.osr`` file, or following the osr format. To create a</span>
+<span class="sd">    replay, you likely want ``Replay.from_path``, ``Replay.from_file``, or</span>
+<span class="sd">    ``Replay.from_string``.</span>
+
+<span class="sd">    Attributes</span>
+<span class="sd">    ----------</span>
+<span class="sd">    mode: GameMode</span>
+<span class="sd">        The game mode this replay was played on.</span>
+<span class="sd">    game_version: int</span>
+<span class="sd">        The game version this replay was played on.</span>
+<span class="sd">    beatmap_hash: str</span>
+<span class="sd">        The hash of the beatmap this replay was played on.</span>
+<span class="sd">    username: str</span>
+<span class="sd">        The user that played this replay.</span>
+<span class="sd">    replay_hash:</span>
+<span class="sd">        The hash of this replay.</span>
+<span class="sd">    count_300: int</span>
+<span class="sd">        The number of 300 judgments in this replay.</span>
+<span class="sd">    count_100: int</span>
+<span class="sd">        The number of 100 judgments in this replay.</span>
+<span class="sd">    count_50: int</span>
+<span class="sd">        The number of 50 judgments in this replay.</span>
+<span class="sd">    count_geki: int</span>
+<span class="sd">        The number of geki judgments in this replay.</span>
+<span class="sd">    count_katu: int</span>
+<span class="sd">        The number of katu judgments in this replay.</span>
+<span class="sd">    count_miss: int</span>
+<span class="sd">        The number of misses in this replay.</span>
+<span class="sd">    score: int</span>
+<span class="sd">        The score of this replay.</span>
+<span class="sd">    max_combo: int</span>
+<span class="sd">        The maximum combo attained in this replay.</span>
+<span class="sd">    perfect: bool</span>
+<span class="sd">        Whether this replay was perfect or not.</span>
+<span class="sd">    mods: Mod</span>
+<span class="sd">        The mods this replay was played with.</span>
+<span class="sd">    life_bar_graph: Optional[List[LifeBarState]]</span>
+<span class="sd">        The life bar of this replay over time.</span>
+<span class="sd">    replay_data: List[ReplayEvent]</span>
+<span class="sd">        The replay data of the replay, including cursor position and keys</span>
+<span class="sd">        pressed.</span>
+<span class="sd">    replay_id: int</span>
+<span class="sd">        The replay id of this replay, or 0 if not submitted.</span>
+<span class="sd">    rng_seed: Optional[int]</span>
+<span class="sd">        The rng seed of this replay, or ``None`` if not present (typically not</span>
+<span class="sd">        present on older replays).</span>
+<span class="sd">    """</span>
+    <span class="n">mode</span><span class="p">:</span> <span class="n">GameMode</span>
+    <span class="n">game_version</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">beatmap_hash</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">username</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">replay_hash</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">count_300</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">count_100</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">count_50</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">count_geki</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">count_katu</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">count_miss</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">score</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">max_combo</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">perfect</span><span class="p">:</span> <span class="nb">bool</span>
+    <span class="n">mods</span><span class="p">:</span> <span class="n">Mod</span>
+    <span class="n">life_bar_graph</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">LifeBarState</span><span class="p">]]</span>
+    <span class="n">timestamp</span><span class="p">:</span> <span class="n">datetime</span>
+    <span class="n">replay_data</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">ReplayEvent</span><span class="p">]</span>
+    <span class="n">replay_id</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">rng_seed</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span>
+
+<div class="viewcode-block" id="Replay.from_path"><a class="viewcode-back" href="../../appendix.html#osrparse.replay.Replay.from_path">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">from_path</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
+        <span class="sd">"""</span>
+<span class="sd">        Creates a new ``Replay`` object from the ``.osr`` file at the given</span>
+<span class="sd">        ``path``.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        path: str or os.PathLike</span>
+<span class="sd">            The path to the osr file to read from.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        Replay</span>
+<span class="sd">            The parsed replay object.</span>
+<span class="sd">        """</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s2">"rb"</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">Replay</span><span class="o">.</span><span class="n">from_file</span><span class="p">(</span><span class="n">f</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Replay.from_file"><a class="viewcode-back" href="../../appendix.html#osrparse.replay.Replay.from_file">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">from_file</span><span class="p">(</span><span class="n">file</span><span class="p">):</span>
+        <span class="sd">"""</span>
+<span class="sd">        Creates a new ``Replay`` object from an open file object.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        file: file-like</span>
+<span class="sd">           The file object to read from.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        Replay</span>
+<span class="sd">            The parsed replay object.</span>
+<span class="sd">        """</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">file</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">Replay</span><span class="o">.</span><span class="n">from_string</span><span class="p">(</span><span class="n">data</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Replay.from_string"><a class="viewcode-back" href="../../appendix.html#osrparse.replay.Replay.from_string">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">from_string</span><span class="p">(</span><span class="n">data</span><span class="p">):</span>
+        <span class="sd">"""</span>
+<span class="sd">        Creates a new ``Replay`` object from a string containing ``.osr`` data.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        data: str</span>
+<span class="sd">           The data to parse.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        Replay</span>
+<span class="sd">            The parsed replay object.</span>
+<span class="sd">        """</span>
+        <span class="k">return</span> <span class="n">_Unpacker</span><span class="p">(</span><span class="n">data</span><span class="p">)</span><span class="o">.</span><span class="n">unpack</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="Replay.write_path"><a class="viewcode-back" href="../../appendix.html#osrparse.replay.Replay.write_path">[docs]</a>    <span class="k">def</span> <span class="nf">write_path</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">dict_size</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">"""</span>
+<span class="sd">        Writes the replay to the given ``path``.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        path: str or os.PathLike</span>
+<span class="sd">           The path to where to write the replay.</span>
+
+<span class="sd">        Notes</span>
+<span class="sd">        -----</span>
+<span class="sd">        This uses the current values of any attributes, and so can be used to</span>
+<span class="sd">        create an edited version of a replay, by first reading a replay, editing</span>
+<span class="sd">        an attribute, then writing the replay back to its file.</span>
+<span class="sd">        """</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s2">"wb"</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">write_file</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">dict_size</span><span class="o">=</span><span class="n">dict_size</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="n">mode</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Replay.write_file"><a class="viewcode-back" href="../../appendix.html#osrparse.replay.Replay.write_file">[docs]</a>    <span class="k">def</span> <span class="nf">write_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">dict_size</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">"""</span>
+<span class="sd">        Writes the replay to an open file object.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        file: file-like</span>
+<span class="sd">           The file object to write to.</span>
+<span class="sd">        """</span>
+        <span class="n">packed</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pack</span><span class="p">(</span><span class="n">dict_size</span><span class="o">=</span><span class="n">dict_size</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="n">mode</span><span class="p">)</span>
+        <span class="n">file</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">packed</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Replay.pack"><a class="viewcode-back" href="../../appendix.html#osrparse.replay.Replay.pack">[docs]</a>    <span class="k">def</span> <span class="nf">pack</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">dict_size</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">"""</span>
+<span class="sd">        Returns the text representing this ``Replay``, in ``.osr`` format.</span>
+<span class="sd">        The text returned by this method is suitable for writing to a file as a</span>
+<span class="sd">        valid ``.osr`` file.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        str</span>
+<span class="sd">            The text representing this ``Replay``, in ``.osr`` format.</span>
+<span class="sd">        """</span>
+        <span class="k">return</span> <span class="n">_Packer</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dict_size</span><span class="o">=</span><span class="n">dict_size</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="n">mode</span><span class="p">)</span><span class="o">.</span><span class="n">pack</span><span class="p">()</span></div></div>
+
+
+<div class="viewcode-block" id="parse_replay_data"><a class="viewcode-back" href="../../appendix.html#osrparse.replay.parse_replay_data">[docs]</a><span class="k">def</span> <span class="nf">parse_replay_data</span><span class="p">(</span><span class="n">data_string</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">decoded</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">decompressed</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="n">mode</span><span class="o">=</span><span class="n">GameMode</span><span class="o">.</span><span class="n">STD</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">ReplayEvent</span><span class="p">]:</span>
+    <span class="sd">"""</span>
+<span class="sd">    Parses the replay data portion of a replay from a string. This method is</span>
+<span class="sd">    siutable for use with the replay data returned by api v1's ``/get_replay``</span>
+<span class="sd">    endpoint, for instance.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    data_string: str or bytes</span>
+<span class="sd">        The replay data to parse.</span>
+<span class="sd">    decoded: bool</span>
+<span class="sd">        Whether ``data_string`` has already been decoded from a b64</span>
+<span class="sd">        representation. Api v1 returns a base 64 encoded string, for instance.</span>
+<span class="sd">    decompressed: bool</span>
+<span class="sd">        Whether ``data_string`` has already been both decompressed from lzma,</span>
+<span class="sd">        and decoded to ascii.</span>
+<span class="sd">        |br|</span>
+<span class="sd">        For instance, the following two calls are equivalent:</span>
+<span class="sd">        ```</span>
+<span class="sd">        &gt;&gt;&gt; parse_replay_data(lzma_string, decoded=True)</span>
+<span class="sd">        &gt;&gt;&gt; ...</span>
+<span class="sd">        &gt;&gt;&gt; lzma_string = lzma.decompress(lzma_string).decode("ascii")</span>
+<span class="sd">        &gt;&gt;&gt; parse_replay_data(lzma_string, decompressed=True)</span>
+<span class="sd">        ```</span>
+<span class="sd">        |br|</span>
+<span class="sd">        If ``decompressed`` is ``True``, ``decoded`` is automatically set to</span>
+<span class="sd">        ``True`` as well (ie, if ``decompressed`` is ``True``, we will assume</span>
+<span class="sd">        ``data_string`` is not base 64 encoded).</span>
+<span class="sd">    mode: GameMode</span>
+<span class="sd">        What mode to parse the replay data as.</span>
+<span class="sd">    """</span>
+    <span class="c1"># assume the data is already decoded if it's been decompressed</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">decoded</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">decompressed</span><span class="p">:</span>
+        <span class="n">data_string</span> <span class="o">=</span> <span class="n">base64</span><span class="o">.</span><span class="n">b64decode</span><span class="p">(</span><span class="n">data_string</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">decompressed</span><span class="p">:</span>
+        <span class="n">data_string</span> <span class="o">=</span> <span class="n">lzma</span><span class="o">.</span><span class="n">decompress</span><span class="p">(</span><span class="n">data_string</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="n">lzma</span><span class="o">.</span><span class="n">FORMAT_AUTO</span><span class="p">)</span>
+        <span class="n">data_string</span> <span class="o">=</span> <span class="n">data_string</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s2">"ascii"</span><span class="p">)</span>
+    <span class="p">(</span><span class="n">replay_data</span><span class="p">,</span> <span class="n">_seed</span><span class="p">)</span> <span class="o">=</span> <span class="n">_Unpacker</span><span class="o">.</span><span class="n">parse_replay_data</span><span class="p">(</span><span class="n">data_string</span><span class="p">,</span> <span class="n">mode</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">replay_data</span></div>
+</pre></div>
+      </article>
+      <footer>
+        
+        <div class="related-pages">
+          
+          
+        </div>
+
+        <div class="related-information">
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer no-toc">
+      
+      
+      
+    </aside>
+  </main>
+</div>
+    <script id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <script src="../../_static/jquery.js"></script>
+    <script src="../../_static/underscore.js"></script>
+    <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/scripts/main.js?digest=e931d09b2a40c1bb82b542effe772014573baf67"></script></body>
+</html>
