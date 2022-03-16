@@ -1,5 +1,6 @@
 import lzma
 import struct
+import hashlib
 from datetime import datetime, timezone, timedelta
 from typing import List, Optional
 import base64
@@ -158,10 +159,12 @@ class _Unpacker:
 
 
 class _Packer:
-    def __init__(self, replay, *, dict_size=None, mode=None):
+    def __init__(self, replay, *, dict_size=None, mode=None, recalculate_replay_hash=False):
         self.replay = replay
+
         self.dict_size = dict_size or 1 << 21
         self.mode = mode or lzma.MODE_FAST
+        self.recalculate_replay_hash = recalculate_replay_hash
 
     def pack_byte(self, data):
         return struct.pack("<B", data)
@@ -248,9 +251,13 @@ class _Packer:
         compressed = lzma.compress(data, format=lzma.FORMAT_ALONE,
             filters=filters)
 
+        if self.recalculate_replay_hash:
+            self.replay.replay_hash = hashlib.md5(compressed).hexdigest()
+        
         return self.pack_int(len(compressed)) + compressed
 
     def pack(self):
+        events = self.pack_replay_data()
         r = self.replay
         data = b""
 
@@ -271,7 +278,7 @@ class _Packer:
         data += self.pack_int(r.mods.value)
         data += self.pack_life_bar()
         data += self.pack_timestamp()
-        data += self.pack_replay_data()
+        data += events
         data += self.pack_long(r.replay_id)
 
         return data
@@ -402,7 +409,7 @@ class Replay:
         """
         return _Unpacker(data).unpack()
 
-    def write_path(self, path, *, dict_size=None, mode=None):
+    def write_path(self, path, *, dict_size=None, mode=None, recalculate_replay_hash=False):
         """
         Writes the replay to the given ``path``.
 
@@ -418,9 +425,9 @@ class Replay:
         an attribute, then writing the replay back to its file.
         """
         with open(path, "wb") as f:
-            self.write_file(f, dict_size=dict_size, mode=mode)
+            self.write_file(f, dict_size=dict_size, mode=mode, recalculate_replay_hash=recalculate_replay_hash)
 
-    def write_file(self, file, *, dict_size=None, mode=None):
+    def write_file(self, file, *, dict_size=None, mode=None, recalculate_replay_hash=False):
         """
         Writes the replay to an open file object.
 
@@ -429,10 +436,10 @@ class Replay:
         file: file-like
            The file object to write to.
         """
-        packed = self.pack(dict_size=dict_size, mode=mode)
+        packed = self.pack(dict_size=dict_size, mode=mode, recalculate_replay_hash=recalculate_replay_hash)
         file.write(packed)
 
-    def pack(self, *, dict_size=None, mode=None):
+    def pack(self, *, dict_size=None, mode=None, recalculate_replay_hash=False):
         """
         Returns the text representing this ``Replay``, in ``.osr`` format.
         The text returned by this method is suitable for writing to a file as a
@@ -443,7 +450,7 @@ class Replay:
         str
             The text representing this ``Replay``, in ``.osr`` format.
         """
-        return _Packer(self, dict_size=dict_size, mode=mode).pack()
+        return _Packer(self, dict_size=dict_size, mode=mode, recalculate_replay_hash=recalculate_replay_hash).pack()
 
 
 def parse_replay_data(data_string, *, decoded=False, decompressed=False,
