@@ -1,5 +1,6 @@
 import lzma
 import struct
+import hashlib
 from datetime import datetime, timezone, timedelta
 from typing import List, Optional
 import base64
@@ -251,6 +252,7 @@ class _Packer:
         return self.pack_int(len(compressed)) + compressed
 
     def pack(self):
+        events = self.pack_replay_data()
         r = self.replay
         data = b""
 
@@ -271,7 +273,7 @@ class _Packer:
         data += self.pack_int(r.mods.value)
         data += self.pack_life_bar()
         data += self.pack_timestamp()
-        data += self.pack_replay_data()
+        data += events
         data += self.pack_long(r.replay_id)
 
         return data
@@ -402,6 +404,16 @@ class Replay:
         """
         return _Unpacker(data).unpack()
 
+    @staticmethod
+    def calculate_replay_hash(replay):
+        packer = _Packer(replay)
+        data = packer.pack_replay_data()
+
+        return hashlib.md5(data).hexdigest()
+    
+    def recalculate_replay_hash(self):
+        self.replay_hash = Replay.calculate_replay_hash(self)
+    
     def write_path(self, path, *, dict_size=None, mode=None):
         """
         Writes the replay to the given ``path``.
