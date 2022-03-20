@@ -412,7 +412,7 @@ class Replay:
         return hashlib.md5(data).hexdigest()
     
     def recalculate_replay_hash(self):
-        self.replay_hash = self.calculate_replay_hash(self.replay_data)
+        self.replay_hash = Replay.calculate_replay_hash(self)
     
     def write_path(self, path, *, dict_size=None, mode=None):
         """
