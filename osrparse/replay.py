@@ -405,9 +405,9 @@ class Replay:
         return _Unpacker(data).unpack()
 
     @staticmethod
-    def calculate_replay_hash(replay_data):
-        packer = _Packer(None)
-        data = packer.pack_replay_data(replay_data)
+    def calculate_replay_hash(replay):
+        packer = _Packer(replay)
+        data = packer.pack_replay_data()
 
         return hashlib.md5(data).hexdigest()
     

@@ -74,6 +74,10 @@ class TestStandardReplay(TestCase):
         # we can parse it properly instead of erroring
         self.assertEqual(self._old_replayid_replay.replay_id, 1127598189)
 
+    def test_replay_hash(self):
+        for replay in self._replays:
+            self.assertEqual(Replay.calculate_replay_hash(replay), "b06ecaf5fc301545b8b23769b2a20451", "Replay hash is wrong")
+
 class TestTaikoReplay(TestCase):
 
     @classmethod
