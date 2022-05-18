@@ -106,3 +106,13 @@ class TestManiaReplay(TestCase):
         play_data = self.replay.replay_data
         self.assertIsInstance(play_data[0], ReplayEventMania, "Replay data is wrong")
         self.assertEqual(len(play_data), 17432, "Replay data is wrong")
+
+class TestLazerReplay(TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.replay = Replay.from_path(RES / "lazer_standard_format.osr")
+
+    def test_play_data(self):
+        # lazer replays do some unusual things with rng seeds compared to
+        # stable, so make sure it parses ok
+        self.assertIsNone(self.replay.rng_seed)

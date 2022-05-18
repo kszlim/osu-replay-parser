@@ -82,11 +82,22 @@ class _Unpacker:
             time_delta = int(event[0])
             x = event[1]
             y = event[2]
-            keys = int(event[3])
+            keys = event[3]
 
             if time_delta == -12345 and event == events[-1]:
-                rng_seed = keys
+                # in lazer, if the rng seed is not set on a replay, it will be
+                # the empty string.
+                if keys == "":
+                    rng_seed = None
+                    continue
+
+                rng_seed = int(keys)
                 continue
+
+            # `keys` might be the empty string in the case of an rng seed frame
+            # generated on lazer. Avoid casting until we've dealt with that case
+            # above.
+            keys = int(keys)
 
             if mode is GameMode.STD:
                 keys = Key(keys)
