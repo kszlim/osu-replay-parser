@@ -89,11 +89,6 @@ class _Unpacker:
                 rng_seed = keys
                 continue
 
-            # `keys` might be the empty string in the case of an rng seed frame
-            # generated on lazer. Avoid casting until we've dealt with that case
-            # above.
-            keys = int(keys)
-
             if mode is GameMode.STD:
                 keys = Key(keys)
                 event = ReplayEventOsu(time_delta, float(x), float(y), keys)
