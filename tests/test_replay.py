@@ -115,4 +115,4 @@ class TestLazerReplay(TestCase):
     def test_play_data(self):
         # lazer replays do some unusual things with rng seeds compared to
         # stable, so make sure it parses ok
-        self.assertIsNone(self.replay.rng_seed)
+        self.assertEqual(self.replay.rng_seed, 0)
