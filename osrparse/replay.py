@@ -96,7 +96,7 @@ class _Unpacker:
             if mode is GameMode.CTB:
                 event = ReplayEventCatch(time_delta, float(x), int(keys) == 1)
             if mode is GameMode.MANIA:
-                event = ReplayEventMania(time_delta, KeyMania(keys))
+                event = ReplayEventMania(time_delta, KeyMania(int(x)))
 
             play_data.append(event)
 
