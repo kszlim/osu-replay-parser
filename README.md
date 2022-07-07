@@ -36,9 +36,10 @@ replay = Replay.from_string(replay_string)
 # a replay has various attributes
 r = replay
 print(r.mode, r.game_version, r.beatmap_hash, r.username,
-    r.r_hash, r.count_300, r.count_100, r.count_50, r.count_geki,
-    r.count_miss, r.score, r.max_combo, r.perfect, r.mods,
-    r.life_bar_graph, r.timestamp, r.r_data, r.r_id, r.rng_seed)
+    r.replay_hash, r.count_300, r.count_100, r.count_50, 
+    r.count_geki, r.count_miss, r.score, r.max_combo, r.perfect, 
+    r.mods, r.life_bar_graph, r.timestamp, r.replay_data, 
+    r.replay_id, r.rng_seed)
 
 # parse the replay data from api v1's /get_replay endpoint
 lzma_string = retrieve_from_api()
