@@ -72,8 +72,9 @@ class _Unpacker:
 
     @staticmethod
     def parse_replay_data(replay_data_str, mode):
-        # remove trailing comma to make splitting easier
-        replay_data_str = replay_data_str[:-1]
+        # remove trailing comma (if it exists) to make splitting easier.
+        # stable always adds a trailing comma, but some lazer versions do not.
+        replay_data_str = replay_data_str.rstrip(",")
         events = [event.split('|') for event in replay_data_str.split(',')]
 
         rng_seed = None
