@@ -1,6 +1,7 @@
 from pathlib import Path
 from unittest import TestCase
 from datetime import datetime, timezone
+import tempfile
 from osrparse import (ReplayEventOsu, GameMode, Mod, ReplayEventTaiko,
     ReplayEventCatch, ReplayEventMania, Replay)
 
@@ -15,6 +16,7 @@ class TestStandardReplay(TestCase):
         with open(replay1_path, "rb") as f:
             data = f.read()
         cls._replays = [Replay.from_string(data), Replay.from_path(replay1_path)]
+        cls._replays_2 = [Replay.from_string(data), Replay.from_path(RES / "replay2.osr"), Replay.from_path(RES / "replay3.osr")]
         cls._combination_replay = Replay.from_path(RES / "replay2.osr")
         cls._old_replayid_replay = Replay.from_path(RES / "replay_old_replayid.osr")
 
@@ -73,6 +75,15 @@ class TestStandardReplay(TestCase):
         # old replays had game_version stored as a short, we want to make sure
         # we can parse it properly instead of erroring
         self.assertEqual(self._old_replayid_replay.replay_id, 1127598189)
+
+    def test_parquet(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            for index, replay in enumerate(self._replays_2):
+                path = f"{tmpdir}/replay_{index}"
+                replay.write_path(path, mode="parquet")
+                df = replay.to_df()
+                df_2 = Replay.from_parquet_to_df(f"{path}.parquet")
+                assert(df.equals(df_2))
 
 class TestTaikoReplay(TestCase):
 

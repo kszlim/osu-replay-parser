@@ -1,9 +1,13 @@
 import lzma
 import struct
 from datetime import datetime, timezone, timedelta
-from typing import List, Optional
+from typing import List, Optional, Tuple
 import base64
 from dataclasses import dataclass
+import json
+import pandas as pd
+import pyarrow as pa
+import pyarrow.parquet as pq
 
 from osrparse.utils import (Mod, GameMode, ReplayEvent, ReplayEventOsu,
     ReplayEventCatch, ReplayEventMania, ReplayEventTaiko, Key, KeyMania,
@@ -348,6 +352,7 @@ class Replay:
     replay_data: List[ReplayEvent]
     replay_id: int
     rng_seed: Optional[int]
+    replay_metadata_key: str = "replay_metadata"
 
     @staticmethod
     def from_path(path):
@@ -418,8 +423,13 @@ class Replay:
         create an edited version of a replay, by first reading a replay, editing
         an attribute, then writing the replay back to its file.
         """
-        with open(path, "wb") as f:
-            self.write_file(f, dict_size=dict_size, mode=mode)
+        if mode == "parquet":
+            df = self.to_df()
+            table = self.to_pyarrow(df)
+            pq.write_table(table, f"{path}.parquet", compression='brotli', compression_level=11)
+        else:
+            with open(path, "wb") as f:
+                self.write_file(f, dict_size=dict_size, mode=mode)
 
     def write_file(self, file, *, dict_size=None, mode=None):
         """
@@ -445,6 +455,88 @@ class Replay:
             The text representing this ``Replay``, in ``.osr`` format.
         """
         return _Packer(self, dict_size=dict_size, mode=mode).pack()
+
+    @staticmethod
+    def columnar_replay_events(replay_events: List[ReplayEventOsu]) -> Tuple[list, list, list, list]:
+        timedeltas = []
+        xs = []
+        ys = []
+        keys = []
+        for replay_event in replay_events:
+            timedeltas.append(replay_event.time_delta)
+            xs.append(replay_event.x)
+            ys.append(replay_event.y)
+            keys.append(replay_event.keys)
+        return (timedeltas, xs, ys, keys)
+
+    def to_df(self):
+        metadata = {}
+        for k, v in {
+            "mode": self.mode.name,
+            "game_version": self.game_version,
+            "beatmap_hash": self.beatmap_hash,
+            "username": self.username,
+            "replay_hash": self.replay_hash,
+            "count_300": self.count_300,
+            "count_100": self.count_100,
+            "count_50": self.count_50,
+            "count_geki": self.count_geki,
+            "count_katu": self.count_katu,
+            "count_miss": self.count_miss,
+            "score": self.score,
+            "max_combo": self.max_combo,
+            "perfect": self.perfect,
+            "mods": int(self.mods),
+            "timestamp": str(self.timestamp)
+        }.items():
+            metadata[k] = v
+
+        ts_data = {}
+        if self.life_bar_graph:
+            life_time = []
+            life = []
+            for lifebar in self.life_bar_graph:
+                life_time.append(lifebar.time)
+                life.append(lifebar.life)
+            ts_data.update({
+                "lifebar_time": life_time,
+                "life": life
+            })
+
+        if isinstance(self.replay_data[0], ReplayEventOsu):
+            (timedeltas, xs, ys, keys) = Replay.columnar_replay_events(self.replay_data)
+        ts_data.update({
+            "time_delta": timedeltas,
+            "x": xs,
+            "y": ys,
+            "keys": keys
+        })
+        df = pd.DataFrame(ts_data)
+        df.attrs = metadata
+        return df
+
+    @staticmethod
+    def to_pyarrow(df):
+        table = pa.Table.from_pandas(df)
+        metadata_json = json.dumps(df.attrs)
+        existing_meta = table.schema.metadata
+        table.schema.metadata
+        combined_meta = {
+            Replay.replay_metadata_key.encode() : metadata_json.encode(),
+            **existing_meta
+        }
+        table = table.replace_schema_metadata(combined_meta)
+        return table
+
+    @staticmethod
+    def from_parquet_to_df(path):
+        table = pq.read_table(path)
+        df = table.to_pandas()
+        restored_meta_json = table.schema.metadata[Replay.replay_metadata_key.encode()]
+        restored_meta = json.loads(restored_meta_json)
+        df.attrs = restored_meta
+        return df
+
 
 
 def parse_replay_data(data_string, *, decoded=False, decompressed=False,
