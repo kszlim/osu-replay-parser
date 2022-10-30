@@ -1,0 +1,36 @@
+[package]
+name = "osucore"
+version = "0.1.11"
+edition = "2021"
+
+[lib]
+name = "osucore"
+crate-type = ["cdylib", "rlib"]
+path = "src/lib.rs"
+
+
+[[bin]]
+name = "osucli"
+path = "src/main.rs"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+clap = {version = "4.0.18", features = ["derive"] }
+maturin = "0.13.6"
+nom = "7.1.1"
+pyo3 = {version = "0.17.2", features = ["extension-module", "chrono", "anyhow", "generate-import-lib"]}
+anyhow = { version="1.0.66", features = ["backtrace"] }
+cargo-xwin = "0.12.0"
+chrono = "0.4.22"
+nom-leb128 = "0.2.0"
+xz2 = "0.1.7"
+rayon = "1.5.3"
+atoi = "2.0.0"
+fast-float = "0.2.0"
+mimalloc = { version = "*", default-features = false }
+
+[profile.release]
+debug = false
+lto = true
+strip = true

@@ -3,8 +3,19 @@ from unittest import TestCase
 from datetime import datetime, timezone
 from osrparse import (ReplayEventOsu, GameMode, Mod, ReplayEventTaiko,
     ReplayEventCatch, ReplayEventMania, Replay)
+import glob
+
 
 RES = Path(__file__).parent / "resources"
+
+class TestReplay(TestCase):
+
+    def test_complete_legacy_equivalence(self):
+        replay_paths = glob.glob(str(RES / "*.osr"))
+        legacy_replays = [Replay.from_path(path, use_legacy_parser=True) for path in replay_paths]
+        replays = Replay.from_paths(replay_paths)
+        for legacy_replay, replay in zip(legacy_replays, replays):
+            self.assertEqual(legacy_replay.replay_data, replay.replay_data)
 
 class TestStandardReplay(TestCase):
 
@@ -14,9 +25,11 @@ class TestStandardReplay(TestCase):
         replay1_path =  RES / "replay.osr"
         with open(replay1_path, "rb") as f:
             data = f.read()
-        cls._replays = [Replay.from_string(data), Replay.from_path(replay1_path)]
+        cls._replays = [Replay.from_path(replay1_path), Replay.from_path(replay1_path, use_legacy_parser=True), Replay.from_string(data), Replay.from_string(data, use_legacy_parser=True)]
         cls._combination_replay = Replay.from_path(RES / "replay2.osr")
         cls._old_replayid_replay = Replay.from_path(RES / "replay_old_replayid.osr")
+        cls._osr_replay = Replay.from_path(replay1_path, use_legacy_parser=True)
+        cls._osu_core_replay = Replay.from_path(replay1_path)
 
     def test_replay_mode(self):
         for replay in self._replays:
@@ -53,10 +66,10 @@ class TestStandardReplay(TestCase):
 
     def test_nomod(self):
         for replay in self._replays:
-            self.assertEqual(replay.mods, Mod.NoMod, "Mod combination is wrong")
+            self.assertEqual(replay.mods.value, Mod.NoMod.value, "Mod combination is wrong")
 
     def test_mod_combination(self):
-        self.assertEqual(self._combination_replay.mods, Mod.Hidden | Mod.HardRock, "Mod combination is wrong")
+        self.assertEqual(self._combination_replay.mods.value, (Mod.Hidden | Mod.HardRock).value, "Mod combination is wrong")
 
     def test_timestamp(self):
         for replay in self._replays:
@@ -74,6 +87,15 @@ class TestStandardReplay(TestCase):
         # we can parse it properly instead of erroring
         self.assertEqual(self._old_replayid_replay.replay_id, 1127598189)
 
+    def test_legacy_equivalence(self):
+        osr_replay = self._osr_replay
+        core_replay = self._osu_core_replay
+        for (core_replay_event, replay_event) in zip(core_replay.replay_data, osr_replay.replay_data):
+            self.assertEqual(core_replay_event.time_delta, replay_event.time_delta)
+            self.assertEqual(core_replay_event.x, replay_event.x)
+            self.assertEqual(core_replay_event.y, replay_event.y)
+            self.assertEqual(core_replay_event.keys.value, replay_event.keys.value)
+
 class TestTaikoReplay(TestCase):
 
     @classmethod
@@ -90,6 +112,7 @@ class TestCatchReplay(TestCase):
     @classmethod
     def setUpClass(cls):
         cls.replay = Replay.from_path(RES / "ctb.osr")
+        cls.replay2 = Replay.from_path(RES / "ctb.osr", use_legacy_parser=True)
 
     def test_play_data(self):
         replay_data = self.replay.replay_data
@@ -103,9 +126,9 @@ class TestManiaReplay(TestCase):
         cls.replay = Replay.from_path(RES / "mania.osr")
 
     def test_play_data(self):
-        play_data = self.replay.replay_data
-        self.assertIsInstance(play_data[0], ReplayEventMania, "Replay data is wrong")
-        self.assertEqual(len(play_data), 17432, "Replay data is wrong")
+        replay_data = self.replay.replay_data
+        self.assertIsInstance(replay_data[0], ReplayEventMania, "Replay data is wrong")
+        self.assertEqual(len(replay_data), 17432, "Replay data is wrong")
 
 class TestLazerReplay(TestCase):
     @classmethod

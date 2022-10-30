@@ -1,0 +1,12 @@
+[project]
+name = "osucore"
+description = "Osu! Replay parser library in rust."
+version = "0.1.11"
+authors = [
+    { name = "Kevin Lim", email = "kszlim@gmail.com" }
+]
+requires-python = ">=3.8"
+
+[build-system]
+requires = ["maturin>=0.13,<0.14"]
+build-backend = "maturin"
