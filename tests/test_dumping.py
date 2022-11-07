@@ -17,7 +17,7 @@ class TestDumping(TestCase):
         with TemporaryDirectory() as tempdir:
             r2_path = Path(tempdir) / "dumped.osr"
             self.replay.write_path(r2_path)
-            r2 = Replay.from_path(r2_path)
+            r2 = Replay.from_path(r2_path, True)
 
         # `replay_length` is intentionally not tested for equality here, as the
         # length of the compressed replay data may change after dumping due to

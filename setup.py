@@ -1,6 +1,6 @@
 from distutils.core import setup
 from setuptools import find_packages
-from osrparse import __version__
+from osrparse.version import __version__
 
 with open("README.md", "r") as f:
     long_description = f.read()
@@ -25,5 +25,8 @@ setup(
     download_url = "https://github.com/kszlim/osu-replay-parser/tarball/v" + __version__,
     license = "MIT",
     test_suite="tests",
+    install_requires=[
+        "osucore>=0.1.11",
+    ],
     packages = find_packages()
 )
