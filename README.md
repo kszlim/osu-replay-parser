@@ -15,7 +15,7 @@ pip install osrparse
 
 ## Documentation
 
-Please see the full documentation for a comprehensive guide: <kszlim.github.io/osu-replay-parser>. A quickstart follows below for the impatient, but you should read the full documentation if you are at all confused.
+Please see the full documentation for a comprehensive guide: <https://kszlim.github.io/osu-replay-parser>. A quickstart follows below for the impatient, but you should read the full documentation if you are at all confused.
 
 ### Quickstart
 
