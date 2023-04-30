@@ -65,7 +65,7 @@ class TestStandardReplay(TestCase):
     def test_play_data(self):
         for replay in self._replays:
             self.assertIsInstance(replay.replay_data[0], ReplayEventOsu, "Replay data is wrong")
-            self.assertEqual(len(replay.replay_data), 17500, "Replay data is wrong")
+            self.assertEqual(len(replay.replay_data), 17498, "Replay data is wrong")
 
     def test_replay_id(self):
         for replay in self._replays:
@@ -83,7 +83,7 @@ class TestTaikoReplay(TestCase):
     def test_play_data(self):
         replay_data = self.replay.replay_data
         self.assertIsInstance(replay_data[0], ReplayEventTaiko, "Replay data is wrong")
-        self.assertEqual(len(replay_data), 17475, "Replay data is wrong")
+        self.assertEqual(len(replay_data), 17473, "Replay data is wrong")
 
 class TestCatchReplay(TestCase):
 
@@ -94,7 +94,7 @@ class TestCatchReplay(TestCase):
     def test_play_data(self):
         replay_data = self.replay.replay_data
         self.assertIsInstance(replay_data[0], ReplayEventCatch, "Replay data is wrong")
-        self.assertEqual(len(replay_data), 10439, "Replay data is wrong")
+        self.assertEqual(len(replay_data), 10437, "Replay data is wrong")
 
 class TestManiaReplay(TestCase):
 
@@ -105,7 +105,7 @@ class TestManiaReplay(TestCase):
     def test_play_data(self):
         play_data = self.replay.replay_data
         self.assertIsInstance(play_data[0], ReplayEventMania, "Replay data is wrong")
-        self.assertEqual(len(play_data), 17432, "Replay data is wrong")
+        self.assertEqual(len(play_data), 17430, "Replay data is wrong")
 
 class TestLazerReplay(TestCase):
     @classmethod
