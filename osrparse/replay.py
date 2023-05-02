@@ -85,6 +85,10 @@ class _Unpacker:
             y = event[2]
             keys = int(event[3])
 
+            if time_delta == -12345 and i == len(events) - 1:
+                rng_seed = keys
+                continue
+
             # I don't really know why these frames exist, but lazer removes them
             # and they can cause issues for minigame replays - e.g., mania
             # interprets x as keys.
@@ -92,10 +96,6 @@ class _Unpacker:
             # https://github.com/ppy/osu/blob/6a04708a7e9801949c6c7ac7ddf6a4d7
             # fa0835e5/osu.Game/Scoring/Legacy/LegacyScoreDecoder.cs#L290-L294.
             if i < 2 and float(x) == 256 and float(y) == -500:
-                continue
-
-            if time_delta == -12345 and i == len(events) - 1:
-                rng_seed = keys
                 continue
 
             if mode is GameMode.STD:
