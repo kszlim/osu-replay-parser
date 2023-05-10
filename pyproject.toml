@@ -1,0 +1,20 @@
+[project]
+name = "osrparse"
+version = "6.0.2"
+description = "Parser for osr files and lzma replay streams for osu!"
+readme = "README.md"
+keywords = ["osu!", "osr", "replay", "replays", "parsing", "parser", "python"]
+authors = [
+  {name = "Kevin Lim",  email = "kszlim@gmail.com"      },
+  {name = "Liam DeVoe", email = "orionldevoe@gmail.com" }
+]
+classifiers = [
+  "Topic :: Games/Entertainment",
+  "Topic :: Software Development :: Libraries",
+  "Intended Audience :: Developers",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3"
+]
+
+[project.urls]
+"Homepage" = "https://github.com/kszlim/osu-replay-parser"
