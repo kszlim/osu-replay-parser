@@ -1,6 +1,6 @@
 [project]
 name = "osrparse"
-version = "6.0.2"
+version = "7.0.0"
 description = "Parser for osr files and lzma replay streams for osu!"
 readme = "README.md"
 keywords = ["osu!", "osr", "replay", "replays", "parsing", "parser", "python"]
