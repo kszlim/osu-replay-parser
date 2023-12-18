@@ -19,6 +19,25 @@ class _Unpacker:
         self.replay_data = replay_data
         self.offset = 0
 
+    def unpack_byte(self):
+        return self.unpack_once("<B")
+
+    def unpack_short(self):
+        return self.unpack_once("<H")
+
+    def unpack_int(self):
+        return self.unpack_once("<I")
+
+    def unpack_long(self):
+        return self.unpack_once("<Q")
+
+    def unpack_once(self, specifier):
+        unpacked = struct.unpack_from(specifier, self.replay_data, self.offset)
+        self.offset += struct.calcsize(specifier)
+        # `struct.unpack_from` always returns a tuple, even if there's only one
+        # element
+        return unpacked[0]
+
     def string_length(self, binarystream):
         result = 0
         shift = 0
@@ -45,23 +64,14 @@ class _Unpacker:
             raise ValueError("Expected the first byte of a string to be 0x00 "
                 f"or 0x0b, but got {self.replay_data[self.offset]}")
 
-    def unpack_once(self, specifier):
-        # always use little endian
-        specifier = f"<{specifier}"
-        unpacked = struct.unpack_from(specifier, self.replay_data, self.offset)
-        self.offset += struct.calcsize(specifier)
-        # `struct.unpack_from` always returns a tuple, even if there's only one
-        # element
-        return unpacked[0]
-
     def unpack_timestamp(self):
-        ticks = self.unpack_once("q")
+        ticks = self.unpack_long()
         timestamp = datetime.min + timedelta(microseconds=ticks/10)
         timestamp = timestamp.replace(tzinfo=timezone.utc)
         return timestamp
 
     def unpack_play_data(self, mode):
-        replay_length = self.unpack_once("i")
+        replay_length = self.unpack_int()
         offset_end = self.offset + replay_length
         data = self.replay_data[self.offset:offset_end]
         data = lzma.decompress(data, format=lzma.FORMAT_AUTO)
@@ -124,9 +134,9 @@ class _Unpacker:
         # https://github.com/ppy/osu/blob/84e1ff79a0736aa6c7a44804b585ab1c54a843
         # 99/osu.Game/Scoring/Legacy/LegacyScoreDecoder.cs#L78-L81
         try:
-            replay_id = self.unpack_once("q")
+            replay_id = self.unpack_long()
         except struct.error:
-            replay_id = self.unpack_once("l")
+            replay_id = self.unpack_short()
         return replay_id
 
     def unpack_life_bar(self):
@@ -141,21 +151,21 @@ class _Unpacker:
         return [LifeBarState(int(s[0]), float(s[1])) for s in states]
 
     def unpack(self):
-        mode = GameMode(self.unpack_once("b"))
-        game_version = self.unpack_once("i")
+        mode = GameMode(self.unpack_byte())
+        game_version = self.unpack_int()
         beatmap_hash = self.unpack_string()
         username = self.unpack_string()
         replay_hash = self.unpack_string()
-        count_300 = self.unpack_once("h")
-        count_100 = self.unpack_once("h")
-        count_50 = self.unpack_once("h")
-        count_geki = self.unpack_once("h")
-        count_katu = self.unpack_once("h")
-        count_miss = self.unpack_once("h")
-        score = self.unpack_once("i")
-        max_combo = self.unpack_once("h")
-        perfect = self.unpack_once("?")
-        mods = Mod(self.unpack_once("i"))
+        count_300 = self.unpack_short()
+        count_100 = self.unpack_short()
+        count_50 = self.unpack_short()
+        count_geki = self.unpack_short()
+        count_katu = self.unpack_short()
+        count_miss = self.unpack_short()
+        score = self.unpack_int()
+        max_combo = self.unpack_short()
+        perfect = self.unpack_byte()
+        mods = Mod(self.unpack_int())
         life_bar_graph = self.unpack_life_bar()
         timestamp = self.unpack_timestamp()
         (replay_data, rng_seed) = self.unpack_play_data(mode)
