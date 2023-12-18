@@ -14,10 +14,8 @@ class TestDumping(TestCase):
         cls.replay = Replay.from_path(RES / "replay.osr")
 
     def test_dumping(self):
-        with TemporaryDirectory() as tempdir:
-            r2_path = Path(tempdir) / "dumped.osr"
-            self.replay.write_path(r2_path)
-            r2 = Replay.from_path(r2_path)
+        packed = self.replay.pack()
+        r2 = Replay.from_string(packed)
 
         # `replay_length` is intentionally not tested for equality here, as the
         # length of the compressed replay data may change after dumping due to
@@ -28,5 +26,4 @@ class TestDumping(TestCase):
             "mods", "life_bar_graph", "timestamp", "replay_data",
             "replay_id"]
         for attr in attrs:
-            self.assertEqual(getattr(self.replay, attr), getattr(r2, attr),
-                f"{attr} is wrong")
+            self.assertEqual(getattr(self.replay, attr), getattr(r2, attr), attr)
