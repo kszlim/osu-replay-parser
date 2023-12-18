@@ -123,7 +123,7 @@ class _Unpacker:
         return (play_data, rng_seed)
 
     def unpack_replay_id(self):
-        # old replays had replay_id stored as a short (4 bytes) instead of a
+        # old replays had replay_id stored as an int32 (4 bytes) instead of a
         # long (8 bytes), so fall back to short if necessary.
         # lazer checks against the gameversion before trying to parse as a
         # short, but there may be some weirdness with replays that were set
@@ -136,7 +136,7 @@ class _Unpacker:
         try:
             replay_id = self.unpack_long()
         except struct.error:
-            replay_id = self.unpack_short()
+            replay_id = self.unpack_int()
         return replay_id
 
     def unpack_life_bar(self):
