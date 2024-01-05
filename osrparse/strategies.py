@@ -1,10 +1,10 @@
 from datetime import timezone
 
 from hypothesis.strategies import (integers, text, booleans,
-    composite, from_type, lists, just, datetimes, floats)
+    composite, from_type, lists, just, datetimes, floats, builds)
 
 from osrparse import (Replay, GameMode, Mod, ReplayEventOsu, ReplayEventMania,
-    ReplayEventCatch, ReplayEventTaiko, KeyTaiko, KeyMania, Key)
+    ReplayEventCatch, ReplayEventTaiko)
 from osrparse.utils import LifeBarState
 
 def utf8():
@@ -19,48 +19,32 @@ def ints():
 def longs():
     return integers(0, 2 ** 64 - 1)
 
-def representable_float():
+def representable_floats():
     # lzma format only allows sane floats, ie no nan or inf.
     return floats(allow_nan=False, allow_infinity=False)
 
-@composite
-def life_bar_states(draw):
-    return LifeBarState(
-        time=draw(integers()),
-        life=draw(representable_float())
-    )
+life_bar_states = builds(
+    LifeBarState,
+    life=representable_floats()
+)
 
-@composite
-def replay_events_osu(draw):
-    return ReplayEventOsu(
-        time_delta=draw(integers()),
-        x=draw(representable_float()),
-        y=draw(representable_float()),
-        keys=draw(from_type(Key))
-    )
+replay_events_osu = builds(
+    ReplayEventOsu,
+    x=representable_floats(),
+    y=representable_floats()
+)
+replay_events_taiko = builds(
+    ReplayEventTaiko
+)
 
-@composite
-def replay_events_taiko(draw):
-    return ReplayEventTaiko(
-        time_delta=draw(integers()),
-        x=draw(integers()),
-        keys=draw(from_type(KeyTaiko))
-    )
+replay_events_mania = builds(
+    ReplayEventMania
+)
 
-@composite
-def replay_events_mania(draw):
-    return ReplayEventMania(
-        time_delta=draw(integers()),
-        keys=draw(from_type(KeyMania)),
-    )
-
-@composite
-def replay_events_catch(draw):
-    return ReplayEventCatch(
-        time_delta=draw(integers()),
-        x=draw(representable_float()),
-        dashing=draw(booleans())
-    )
+replay_events_catch = builds(
+    ReplayEventCatch,
+    x=representable_floats()
+)
 
 
 @composite
@@ -91,10 +75,10 @@ def replays(draw):
         # TODO mod combinations
         mods=draw(from_type(Mod)),
         # TODO bug serializing empty life bar state, None vs []
-        life_bar_graph=draw(lists(life_bar_states(), min_size=1) | just(None)),
+        life_bar_graph=draw(lists(life_bar_states, min_size=1) | just(None)),
         timestamp=draw(datetimes(timezones=just(timezone.utc))),
         # TODO bug serializing empty replay_data. might be valid by osr spec?
-        replay_data=draw(lists(replay_events(), min_size=1)),
+        replay_data=draw(lists(replay_events, min_size=1)),
         replay_id=draw(longs()),
         rng_seed=draw(ints() | just(None))
     )
