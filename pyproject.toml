@@ -16,5 +16,8 @@ classifiers = [
   "Programming Language :: Python :: 3"
 ]
 
+[project.optional-dependencies]
+dev = ["hypothesis"]
+
 [project.urls]
 "Homepage" = "https://github.com/kszlim/osu-replay-parser"
