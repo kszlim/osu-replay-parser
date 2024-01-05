@@ -74,10 +74,10 @@ def replays(draw):
         perfect=draw(booleans()),
         # TODO mod combinations
         mods=draw(from_type(Mod)),
-        # TODO bug serializing empty life bar state, None vs []
+        # TODO issue with empty life bar state, None vs []
         life_bar_graph=draw(lists(life_bar_states, min_size=1) | just(None)),
         timestamp=draw(datetimes(timezones=just(timezone.utc))),
-        # TODO bug serializing empty replay_data. might be valid by osr spec?
+        # TODO issue with empty replay_data. might be valid by osr spec?
         replay_data=draw(lists(replay_events, min_size=1)),
         replay_id=draw(longs()),
         rng_seed=draw(ints() | just(None))
