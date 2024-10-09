@@ -17,7 +17,8 @@ def ints():
     return integers(0, 2 ** 32 - 1)
 
 def longs():
-    return integers(0, 2 ** 64 - 1)
+    r = 2**32 - 1
+    return integers(-r, r)
 
 def representable_floats():
     # lzma format only allows sane floats, ie no nan or inf.
