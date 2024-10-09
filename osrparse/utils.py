@@ -1,5 +1,6 @@
 from enum import Enum, IntFlag
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
+import json
 
 class GameMode(Enum):
     """
@@ -193,3 +194,43 @@ class LifeBarState:
     """
     time: int
     life: float
+
+@dataclass
+class LegacyReplaySoloScoreInfo:
+    online_id: int
+    mods: list[dict]
+    statistics: dict
+    maximum_statistics: dict
+    client_version: str
+    rank: str
+    user_id: int
+    total_score_without_mods: int
+
+    @classmethod
+    def from_json_string(cls, json_string):
+        json_dict = json.loads(json_string)
+        return cls(
+            online_id=json_dict["online_id"],
+            mods=json_dict["mods"],
+            statistics=json_dict["statistics"],
+            maximum_statistics=json_dict["maximum_statistics"],
+            client_version=json_dict["client_version"],
+            rank=json_dict["rank"],
+            user_id=json_dict["user_id"],
+            total_score_without_mods=json_dict["total_score_without_mods"],
+        )
+    
+    @staticmethod
+    def to_json_string(score_info):
+        return json.dumps(
+            {
+                "online_id": score_info.online_id,
+                "mods": score_info.mods,
+                "statistics": score_info.statistics,
+                "maximum_statistics": score_info.maximum_statistics,
+                "client_version": score_info.client_version,
+                "rank": score_info.rank,
+                "user_id": score_info.user_id,
+                "total_score_without_mods": score_info.total_score_without_mods,
+            }
+        )

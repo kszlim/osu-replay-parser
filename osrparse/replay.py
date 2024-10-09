@@ -7,7 +7,7 @@ from dataclasses import dataclass
 
 from osrparse.utils import (Mod, GameMode, ReplayEvent, ReplayEventOsu,
     ReplayEventCatch, ReplayEventMania, ReplayEventTaiko, Key, KeyMania,
-    KeyTaiko, LifeBarState)
+    KeyTaiko, LifeBarState, LegacyReplaySoloScoreInfo)
 
 
 class _Unpacker:
@@ -79,6 +79,16 @@ class _Unpacker:
         (replay_data, rng_seed) = self.parse_replay_data(data, mode)
         self.offset = offset_end
         return (replay_data, rng_seed)
+    
+    def unpack_score_info(self):
+        score_length = self.unpack_int()
+        offset_end = self.offset + score_length
+        data = self.replay_data[self.offset:offset_end]
+        data = lzma.decompress(data, format=lzma.FORMAT_AUTO)
+        data = data.decode("ascii")
+        score_info = self.parse_score_info(data)
+        self.offset = offset_end
+        return score_info
 
     @staticmethod
     def parse_replay_data(replay_data_str, mode):
@@ -121,6 +131,10 @@ class _Unpacker:
             play_data.append(event)
 
         return (play_data, rng_seed)
+    
+    @staticmethod
+    def parse_score_info(score_info_str):
+        return LegacyReplaySoloScoreInfo.from_json_string(score_info_str)
 
     def unpack_replay_id(self):
         # old replays had replay_id stored as an int32 (4 bytes) instead of a
@@ -170,11 +184,12 @@ class _Unpacker:
         timestamp = self.unpack_timestamp()
         (replay_data, rng_seed) = self.unpack_play_data(mode)
         replay_id = self.unpack_replay_id()
+        score_info = self.unpack_score_info()
 
         return Replay(mode, game_version, beatmap_hash, username,
             replay_hash, count_300, count_100, count_50, count_geki, count_katu,
             count_miss, score, max_combo, perfect, mods, life_bar_graph,
-            timestamp, replay_data, replay_id, rng_seed)
+            timestamp, replay_data, replay_id, rng_seed, score_info)
 
 
 class _Packer:
@@ -269,6 +284,24 @@ class _Packer:
             filters=filters)
 
         return self.pack_int(len(compressed)) + compressed
+    
+    def pack_score_info(self):
+        data = ""
+        data += self.replay.score_info.to_json_string(self.replay.score_info)
+
+        filters = [
+            {
+                "id": lzma.FILTER_LZMA1,
+                "dict_size": self.dict_size,
+                "mode": self.mode
+            }
+        ]
+
+        data = data.encode("ascii")
+        compressed = lzma.compress(data, format=lzma.FORMAT_ALONE,
+            filters=filters)
+
+        return self.pack_int(len(compressed)) + compressed
 
     def pack(self):
         r = self.replay
@@ -293,6 +326,8 @@ class _Packer:
         data += self.pack_timestamp()
         data += self.pack_replay_data()
         data += self.pack_long(r.replay_id)
+        if (r.game_version >= 30000001):
+            data += self.pack_score_info()
 
         return data
 
@@ -367,6 +402,7 @@ class Replay:
     replay_data: List[ReplayEvent]
     replay_id: int
     rng_seed: Optional[int]
+    score_info: LegacyReplaySoloScoreInfo
 
     @staticmethod
     def from_path(path):
@@ -506,3 +542,4 @@ def parse_replay_data(data_string, *, decoded=False, decompressed=False,
         data_string = data_string.decode("ascii")
     (replay_data, _seed) = _Unpacker.parse_replay_data(data_string, mode)
     return replay_data
+
