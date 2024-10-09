@@ -17,7 +17,7 @@ def ints():
     return integers(0, 2 ** 32 - 1)
 
 def longs():
-    r = 2**32 - 1
+    r = 2**63 - 1
     return integers(-r, r)
 
 def representable_floats():
