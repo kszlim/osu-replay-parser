@@ -1,5 +1,5 @@
 from enum import Enum, IntFlag
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass
 import json
 
 class GameMode(Enum):
