@@ -29,7 +29,7 @@ class _Unpacker:
         return self.unpack_once("<I")
 
     def unpack_long(self):
-        return self.unpack_once("<Q")
+        return self.unpack_once("<q")
 
     def unpack_once(self, specifier):
         unpacked = struct.unpack_from(specifier, self.replay_data, self.offset)
@@ -193,7 +193,7 @@ class _Packer:
         return struct.pack("<I", data)
 
     def pack_long(self, data):
-        return struct.pack("<Q", data)
+        return struct.pack("<q", data)
 
     def pack_ULEB128(self, data):
         # https://github.com/mohanson/leb128
