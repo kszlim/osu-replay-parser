@@ -193,7 +193,7 @@ class _Packer:
         return struct.pack("<I", data)
 
     def pack_long(self, data):
-        return struct.pack("<Q", data)
+        return struct.pack("<q", data)
 
     def pack_ULEB128(self, data):
         # https://github.com/mohanson/leb128
