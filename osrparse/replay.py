@@ -29,7 +29,7 @@ class _Unpacker:
         return self.unpack_once("<I")
 
     def unpack_long(self):
-        return self.unpack_once("<Q")
+        return self.unpack_once("<q")
 
     def unpack_once(self, specifier):
         unpacked = struct.unpack_from(specifier, self.replay_data, self.offset)
