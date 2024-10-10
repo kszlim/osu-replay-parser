@@ -185,7 +185,7 @@ class _Unpacker:
         (replay_data, rng_seed) = self.unpack_play_data(mode)
         replay_id = self.unpack_replay_id()
         score_info = None
-        
+
         if game_version >= 30000001:
             score_info = self.unpack_score_info()
 
@@ -290,7 +290,7 @@ class _Packer:
     
     def pack_score_info(self):
         data = ""
-        data += self.replay.score_info.to_json_string(self.replay.score_info)
+        data += self.replay.score_info.to_json_string()
 
         filters = [
             {

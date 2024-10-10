@@ -220,17 +220,17 @@ class LegacyReplaySoloScoreInfo:
             total_score_without_mods=json_dict["total_score_without_mods"],
         )
     
-    @staticmethod
-    def to_json_string(score_info):
+    @classmethod
+    def to_json_string(self):
         return json.dumps(
             {
-                "online_id": score_info.online_id,
-                "mods": score_info.mods,
-                "statistics": score_info.statistics,
-                "maximum_statistics": score_info.maximum_statistics,
-                "client_version": score_info.client_version,
-                "rank": score_info.rank,
-                "user_id": score_info.user_id,
-                "total_score_without_mods": score_info.total_score_without_mods,
+                "online_id": self.online_id,
+                "mods": self.mods,
+                "statistics": self.statistics,
+                "maximum_statistics": self.maximum_statistics,
+                "client_version": self.client_version,
+                "rank": self.rank,
+                "user_id": self.user_id,
+                "total_score_without_mods": self.total_score_without_mods,
             }
         )
