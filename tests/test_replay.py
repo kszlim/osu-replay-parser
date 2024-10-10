@@ -116,3 +116,37 @@ class TestLazerReplay(TestCase):
         # lazer replays do some unusual things with rng seeds compared to
         # stable, so make sure it parses ok
         self.assertEqual(self.replay.rng_seed, 0)
+
+    def test_score_info(self):
+        self.assertEqual(self.replay.score_info, None)
+
+class TestLazerReplayWithScoreInfo(TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.replay = Replay.from_path(RES / "lazer_with_score_info.osr")
+
+    def test_score_info(self):
+        self.assertEqual(self.replay.score_info.client_version, "2024.906.2-lazer", "Client version is wrong")
+        self.assertEqual(self.replay.score_info.online_id, 3510429377, "Online ID is wrong")
+        self.assertEqual(self.replay.score_info.rank, "A", "Rank is wrong")
+        self.assertEqual(self.replay.score_info.total_score_without_mods, 475205, "Total score without mods is wrong")
+        self.assertEqual(self.replay.score_info.user_id, 9343913, "User ID is wrong")
+
+        self.assertEqual(self.replay.score_info.mods[0]["acronym"], "HD", "First mod is wrong")
+        self.assertEqual(self.replay.score_info.mods[1]["acronym"], "RX", "Second mod is wrong")
+
+        self.assertEqual(self.replay.score_info.statistics["miss"], 55, "Miss count is wrong")
+        self.assertEqual(self.replay.score_info.statistics["meh"], 2, "Meh count is wrong")
+        self.assertEqual(self.replay.score_info.statistics["ok"], 25, "Ok count is wrong")
+        self.assertEqual(self.replay.score_info.statistics["great"], 850, "Great count is wrong")
+        self.assertEqual(self.replay.score_info.statistics["large_tick_hit"], 53, "Large tick hit count is wrong")
+        self.assertEqual(self.replay.score_info.statistics["ignore_miss"], 13, "Ignore miss count is wrong")
+        self.assertEqual(self.replay.score_info.statistics["ignore_hit"], 248, "Ignore hit count is wrong")
+        self.assertEqual(self.replay.score_info.statistics["slider_tail_hit"], 243, "Slider tail hit count is wrong")
+
+        self.assertEqual(self.replay.score_info.maximum_statistics["great"], 932, "Great count is wrong")
+        self.assertEqual(self.replay.score_info.maximum_statistics["large_tick_hit"], 53, "Large tick hit count is wrong")
+        self.assertEqual(self.replay.score_info.maximum_statistics["ignore_hit"], 252, "Ignore hit count is wrong")
+        self.assertEqual(self.replay.score_info.maximum_statistics["slider_tail_hit"], 252, "Slider tail hit count is wrong")
+
+
