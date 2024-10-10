@@ -184,7 +184,10 @@ class _Unpacker:
         timestamp = self.unpack_timestamp()
         (replay_data, rng_seed) = self.unpack_play_data(mode)
         replay_id = self.unpack_replay_id()
-        score_info = self.unpack_score_info()
+        score_info = None
+        
+        if game_version >= 30000001:
+            score_info = self.unpack_score_info()
 
         return Replay(mode, game_version, beatmap_hash, username,
             replay_hash, count_300, count_100, count_50, count_geki, count_katu,
