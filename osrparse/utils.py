@@ -1,6 +1,7 @@
 from enum import Enum, IntFlag
 from dataclasses import dataclass
 import json
+from typing import Literal, TypedDict
 
 class GameMode(Enum):
     """
@@ -195,19 +196,43 @@ class LifeBarState:
     time: int
     life: float
 
+class Statistics(TypedDict, total=False):
+    none: int
+    miss: int
+    meh: int
+    ok: int
+    good: int
+    great: int
+    perfect: int
+    small_tick_miss: int
+    small_tick_hit: int
+    large_tick_miss: int
+    large_tick_hit: int
+    small_bonus: int
+    large_bonus: int
+    ignore_miss: int
+    ignore_hit: int
+    combo_break: int
+    slider_tail_hit: int
+    legacy_combo_increase: int
+
+class APIMod(TypedDict, total=False):
+    acronym: str
+    settings: dict
+
 @dataclass
 class LegacyReplaySoloScoreInfo:
     online_id: int
-    mods: list[dict]
-    statistics: dict
-    maximum_statistics: dict
+    mods: list[APIMod]
+    statistics: Statistics
+    maximum_statistics: Statistics
     client_version: str
-    rank: str
+    rank: Literal["F", "D", "C", "B", "A", "S", "S+", "SS", "SS+"]
     user_id: int
     total_score_without_mods: int
 
-    @classmethod
-    def from_json_string(cls, json_string):
+    @staticmethod
+    def from_json_string(cls, json_string : str):
         json_dict = json.loads(json_string)
         return cls(
             online_id=json_dict["online_id"],
