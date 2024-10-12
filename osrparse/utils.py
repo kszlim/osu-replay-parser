@@ -231,7 +231,7 @@ class LegacyReplaySoloScoreInfo:
     user_id: int
     total_score_without_mods: int
 
-    @staticmethod
+    @classmethod
     def from_json_string(cls, json_string : str):
         json_dict = json.loads(json_string)
         return cls(
@@ -245,7 +245,6 @@ class LegacyReplaySoloScoreInfo:
             total_score_without_mods=json_dict["total_score_without_mods"],
         )
     
-    @classmethod
     def to_json_string(self):
         return json.dumps(
             {
