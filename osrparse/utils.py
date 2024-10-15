@@ -1,5 +1,7 @@
 from enum import Enum, IntFlag
 from dataclasses import dataclass
+import json
+from typing import Literal, NotRequired, TypedDict
 
 class GameMode(Enum):
     """
@@ -193,3 +195,78 @@ class LifeBarState:
     """
     time: int
     life: float
+
+class Statistics(TypedDict, total=False):
+    none: int
+    miss: int
+    meh: int
+    ok: int
+    good: int
+    great: int
+    perfect: int
+    small_tick_miss: int
+    small_tick_hit: int
+    large_tick_miss: int
+    large_tick_hit: int
+    small_bonus: int
+    large_bonus: int
+    ignore_miss: int
+    ignore_hit: int
+    combo_break: int
+    slider_tail_hit: int
+    legacy_combo_increase: int
+
+class APIMod(TypedDict):
+    acronym: str
+    settings: NotRequired[dict]
+
+@dataclass
+class LegacyReplaySoloScoreInfo:
+    online_id: int
+    mods: list[APIMod]
+    statistics: Statistics
+    maximum_statistics: Statistics
+    client_version: str
+    rank: Literal["F", "D", "C", "B", "A", "S", "S+", "SS", "SS+"]
+    user_id: int
+    total_score_without_mods: int
+
+    @classmethod
+    def from_json_string(cls, json_string : str):
+        json_dict = json.loads(json_string)
+        return cls(
+            online_id=json_dict["online_id"],
+            mods=json_dict["mods"],
+            statistics=json_dict["statistics"],
+            maximum_statistics=json_dict["maximum_statistics"],
+            client_version=json_dict["client_version"],
+            rank=json_dict["rank"],
+            user_id=json_dict["user_id"],
+            total_score_without_mods=json_dict["total_score_without_mods"],
+        )
+    
+    def to_json_string(self):
+        return json.dumps(
+            {
+                "online_id": self.online_id,
+                "mods": self.mods,
+                "statistics": self.statistics,
+                "maximum_statistics": self.maximum_statistics,
+                "client_version": self.client_version,
+                "rank": self.rank,
+                "user_id": self.user_id,
+                "total_score_without_mods": self.total_score_without_mods,
+            }
+        )
+    
+def encoder_version_appends_score_info(version: int) -> bool:
+    """
+    Checks if there should be score info appended at the end of replay.
+    
+    Note:
+    ----------
+    Lazer's `LegacyScoreEncoder` started appending `LegacyReplaySoloScoreInfo` at version 30000001.
+    See: https://github.com/ppy/osu/blob/790f863e0654fd563b57ab699d6be86895e756ab/osu.Game/Scoring/Legacy/LegacyScoreEncoder.cs#L31
+    """
+    
+    return version >= 30000001
