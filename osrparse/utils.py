@@ -1,7 +1,7 @@
 from enum import Enum, IntFlag
 from dataclasses import dataclass
 import json
-from typing import Literal, TypedDict
+from typing import Literal, NotRequired, TypedDict
 
 class GameMode(Enum):
     """
@@ -216,9 +216,9 @@ class Statistics(TypedDict, total=False):
     slider_tail_hit: int
     legacy_combo_increase: int
 
-class APIMod(TypedDict, total=False):
+class APIMod(TypedDict):
     acronym: str
-    settings: dict
+    settings: NotRequired[dict]
 
 @dataclass
 class LegacyReplaySoloScoreInfo:
