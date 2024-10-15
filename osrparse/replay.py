@@ -7,7 +7,7 @@ from dataclasses import dataclass
 
 from osrparse.utils import (Mod, GameMode, ReplayEvent, ReplayEventOsu,
     ReplayEventCatch, ReplayEventMania, ReplayEventTaiko, Key, KeyMania,
-    KeyTaiko, LifeBarState, LegacyReplaySoloScoreInfo)
+    KeyTaiko, LifeBarState, LegacyReplaySoloScoreInfo, encoder_version_appends_score_info)
 
 
 class _Unpacker:
@@ -186,7 +186,7 @@ class _Unpacker:
         replay_id = self.unpack_replay_id()
         score_info = None
 
-        if game_version >= 30000001:
+        if encoder_version_appends_score_info(game_version):
             score_info = self.unpack_score_info()
 
         return Replay(mode, game_version, beatmap_hash, username,
@@ -289,9 +289,9 @@ class _Packer:
         return self.pack_int(len(compressed)) + compressed
     
     def pack_score_info(self):
-        data = ""
-        data += self.replay.score_info.to_json_string()
-
+        data = self.replay.score_info.to_json_string()
+        data = data.encode("ascii")
+        
         filters = [
             {
                 "id": lzma.FILTER_LZMA1,
@@ -299,8 +299,7 @@ class _Packer:
                 "mode": self.mode
             }
         ]
-
-        data = data.encode("ascii")
+        
         compressed = lzma.compress(data, format=lzma.FORMAT_ALONE,
             filters=filters)
 
@@ -329,7 +328,8 @@ class _Packer:
         data += self.pack_timestamp()
         data += self.pack_replay_data()
         data += self.pack_long(r.replay_id)
-        if (r.game_version >= 30000001):
+
+        if encoder_version_appends_score_info(r.game_version):
             data += self.pack_score_info()
 
         return data

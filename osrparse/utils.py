@@ -258,3 +258,15 @@ class LegacyReplaySoloScoreInfo:
                 "total_score_without_mods": self.total_score_without_mods,
             }
         )
+    
+def encoder_version_appends_score_info(version: int) -> bool:
+    """
+    Checks if there should be score info appended at the end of replay.
+    
+    Note:
+    ----------
+    Lazer's `LegacyScoreEncoder` started appending `LegacyReplaySoloScoreInfo` at version 30000001.
+    See: https://github.com/ppy/osu/blob/790f863e0654fd563b57ab699d6be86895e756ab/osu.Game/Scoring/Legacy/LegacyScoreEncoder.cs#L31
+    """
+    
+    return version >= 30000001
