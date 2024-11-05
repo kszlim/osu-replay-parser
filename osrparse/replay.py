@@ -197,7 +197,7 @@ class _Packer:
 
     def pack_ULEB128(self, data):
         # https://github.com/mohanson/leb128
-        r, i = [], len(data)
+        r, i = [], len(data.encode("utf-8"))
 
         while True:
             byte = i & 0x7f
