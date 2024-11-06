@@ -211,8 +211,8 @@ class _Packer:
 
     def pack_string(self, data):
         if data:
-            return (self.pack_byte(11) + self.pack_ULEB128(data) +
-                data.encode("utf-8"))
+            data = data.encode("utf-8")
+            return self.pack_byte(11) + self.pack_ULEB128(data) + data
         return self.pack_byte(11) + self.pack_byte(0)
 
     def pack_timestamp(self):
