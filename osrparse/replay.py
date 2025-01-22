@@ -1,11 +1,12 @@
 import lzma
 import struct
 from datetime import datetime, timezone, timedelta
-from typing import List, Optional
+from typing import List, Optional, Any
 import base64
 from dataclasses import dataclass
+import osucore
 
-from osrparse.utils import (Mod, GameMode, ReplayEvent, ReplayEventOsu,
+from osrparse.utils import (Mod, GameMode, ReplayEventOsu,
     ReplayEventCatch, ReplayEventMania, ReplayEventTaiko, Key, KeyMania,
     KeyTaiko, LifeBarState)
 
@@ -150,7 +151,7 @@ class _Unpacker:
 
         return [LifeBarState(int(s[0]), float(s[1])) for s in states]
 
-    def unpack(self):
+    def unpack(self, header_only=False):
         mode = GameMode(self.unpack_byte())
         game_version = self.unpack_int()
         beatmap_hash = self.unpack_string()
@@ -168,7 +169,10 @@ class _Unpacker:
         mods = Mod(self.unpack_int())
         life_bar_graph = self.unpack_life_bar()
         timestamp = self.unpack_timestamp()
-        (replay_data, rng_seed) = self.unpack_play_data(mode)
+        if not header_only:
+            (replay_data, rng_seed) = self.unpack_play_data(mode)
+        else:
+            (replay_data, rng_seed) = ([], None)
         replay_id = self.unpack_replay_id()
 
         return Replay(mode, game_version, beatmap_hash, username,
@@ -248,6 +252,7 @@ class _Packer:
                 data += f"{t}|{event.x}|{event.y}|{event.keys.value},"
             elif isinstance(event, ReplayEventTaiko):
                 data += f"{t}|{event.x}|0|{event.keys.value},"
+                print(f"Dump: {event.keys.value}")
             elif isinstance(event, ReplayEventCatch):
                 data += f"{t}|{event.x}|0|{int(event.dashing)},"
             elif isinstance(event, ReplayEventMania):
@@ -364,12 +369,12 @@ class Replay:
     mods: Mod
     life_bar_graph: Optional[List[LifeBarState]]
     timestamp: datetime
-    replay_data: List[ReplayEvent]
+    replay_data: List[Any]
     replay_id: int
     rng_seed: Optional[int]
 
     @staticmethod
-    def from_path(path):
+    def from_path(path, *, use_legacy_parser=True, header_only=False):
         """
         Creates a new ``Replay`` object from the ``.osr`` file at the given
         ``path``.
@@ -378,17 +383,63 @@ class Replay:
         ----------
         path: str or os.PathLike
             The path to the osr file to read from.
+        use_legacy_parser: bool
+            Whether to use the older Python only implementation of osr unpacking
+        header_only: bool
+            Whether to ignore and just skip over parsing the play data (only compatible with
+            the new parser)
 
         Returns
         -------
         Replay
             The parsed replay object.
         """
-        with open(path, "rb") as f:
-            return Replay.from_file(f)
+        if use_legacy_parser:
+            with open(path, "rb") as f:
+                return Replay.from_file(f, use_legacy_parser=use_legacy_parser, header_only=header_only)
+
+        replay = osucore.parse_replay_from_path(str(path), header_only)
+        return Replay._core_to_osr(replay)
+
 
     @staticmethod
-    def from_file(file):
+    def from_paths(paths, *, use_legacy_parser=True, header_only=False):
+        """
+        Creates ``List[Replay]`` from the ``.osr`` files at the given
+        ``paths``.
+
+        Parameters
+        ----------
+        path: List[str] or List[os.PathLike]
+            The path to the osr file to read from.
+        use_legacy_parser: bool
+            Whether to use the older Python only implementation of osr unpacking
+        header_only: bool
+            Whether to ignore and just skip over parsing the play data (only compatible with
+            the new parser)
+
+        Returns
+        -------
+        Replay
+            The parsed replay object.
+        """
+
+        if use_legacy_parser:
+            replays = []
+            for path in paths:
+                with open(path, "rb") as f:
+                    replays.append(Replay.from_file(f, use_legacy_parser=use_legacy_parser, header_only=header_only))
+            return replays
+        else:        
+            paths = [str(path) for path in paths]
+            replays = []
+            for replay in osucore.parse_replays_from_paths(paths, header_only):
+                replays.append(Replay._core_to_osr(replay))
+            return replays
+
+
+    @staticmethod
+    def from_file(file, *, use_legacy_parser=True, header_only=False):
         """
         Creates a new ``Replay`` object from an open file object.
 
@@ -396,6 +447,11 @@ class Replay:
         ----------
         file: file-like
            The file object to read from.
+        use_legacy_parser: bool
+            Whether to use the older Python only implementation of osr unpacking
+        header_only: bool
+            Whether to ignore and just skip over parsing the play data (only compatible with
+            the new parser)
 
         Returns
         -------
@@ -403,10 +459,12 @@ class Replay:
             The parsed replay object.
         """
         data = file.read()
-        return Replay.from_string(data)
+        if use_legacy_parser:
+            return Replay.from_string(data, use_legacy_parser=use_legacy_parser, header_only=header_only)
+        return Replay._core_to_osr(osucore.parse_replay_from_bytes(data, header_only))
 
     @staticmethod
-    def from_string(data):
+    def from_string(data, *, use_legacy_parser=True, header_only=False):
         """
         Creates a new ``Replay`` object from a string containing ``.osr`` data.
 
@@ -414,13 +472,20 @@ class Replay:
         ----------
         data: str
            The data to parse.
+        use_legacy_parser: bool
+            Whether to use the older Python only implementation of osr unpacking
+        header_only: bool
+            Whether to ignore and just skip over parsing the play data (only compatible with
+            the new parser)
 
         Returns
         -------
         Replay
             The parsed replay object.
         """
-        return _Unpacker(data).unpack()
+        if use_legacy_parser:
+            return _Unpacker(data).unpack(header_only=header_only)
+        return Replay._core_to_osr(osucore.parse_replay_from_bytes(data, header_only))
 
     def write_path(self, path, *, dict_size=None, mode=None):
         """
@@ -464,10 +529,47 @@ class Replay:
             The text representing this ``Replay``, in ``.osr`` format.
         """
         return _Packer(self, dict_size=dict_size, mode=mode).pack()
+    
+    @staticmethod
+    def _core_to_osr(replay: 'osucore.Replay'):
+        timestamp = datetime.min + timedelta(microseconds=replay.timestamp/10)
+        timestamp = timestamp.replace(tzinfo=timezone.utc)
+        if replay.mode == osucore.GameMode.STD:
+            replay_data = replay.replay_data.osu_replay_data
+        elif replay.mode == osucore.GameMode.TAIKO:
+            replay_data = replay.replay_data.taiko_replay_data
+        elif replay.mode == osucore.GameMode.CTB:
+            replay_data = replay.replay_data.catch_replay_data
+        elif replay.mode == osucore.GameMode.MANIA:
+            replay_data = replay.replay_data.mania_replay_data
+        else:
+            replay_data = None
+        return Replay(
+            replay.mode,
+            replay.game_version,
+            replay.beatmap_hash,
+            replay.username,
+            replay.replay_hash,
+            replay.count_300,
+            replay.count_100,
+            replay.count_50,
+            replay.count_geki,
+            replay.count_katu,
+            replay.count_miss,
+            replay.score,
+            replay.max_combo,
+            replay.perfect,
+            replay.mods,
+            replay.life_bar_graph,
+            timestamp,
+            replay_data,
+            replay.replay_id,
+            replay.rng_seed,
+        )
 
 
 def parse_replay_data(data_string, *, decoded=False, decompressed=False,
-    mode=GameMode.STD) -> List[ReplayEvent]:
+    mode=GameMode.STD, use_legacy_parser=False) -> List[Any]:
     """
     Parses the replay data portion of a replay from a string. This method is
     siutable for use with the replay data returned by api v1's ``/get_replay``
@@ -497,12 +599,17 @@ def parse_replay_data(data_string, *, decoded=False, decompressed=False,
         ``data_string`` is not base 64 encoded).
     mode: GameMode
         What mode to parse the replay data as.
+    use_legacy_parser: bool
+        Whether to use the older Python only implementation of osr unpacking
     """
     # assume the data is already decoded if it's been decompressed
     if not decoded and not decompressed:
         data_string = base64.b64decode(data_string)
     if not decompressed:
         data_string = lzma.decompress(data_string, format=lzma.FORMAT_AUTO)
+    if use_legacy_parser:
         data_string = data_string.decode("ascii")
-    (replay_data, _seed) = _Unpacker.parse_replay_data(data_string, mode)
+        (replay_data, _seed) = _Unpacker.parse_replay_data(data_string, mode)
+    else:
+        return Replay._core_to_osr(osucore.parse_replay_data(data_string, mode))
     return replay_data

@@ -3,6 +3,8 @@ from unittest import TestCase
 from datetime import datetime, timezone
 from osrparse import (ReplayEventOsu, GameMode, Mod, ReplayEventTaiko,
     ReplayEventCatch, ReplayEventMania, Replay)
+import osucore
+
 
 RES = Path(__file__).parent / "resources"
 
@@ -14,13 +16,13 @@ class TestStandardReplay(TestCase):
         replay1_path =  RES / "replay.osr"
         with open(replay1_path, "rb") as f:
             data = f.read()
-        cls._replays = [Replay.from_string(data), Replay.from_path(replay1_path)]
-        cls._combination_replay = Replay.from_path(RES / "replay2.osr")
-        cls._old_replayid_replay = Replay.from_path(RES / "replay_old_replayid.osr")
+        cls._replays = [Replay.from_string(data), Replay.from_path(replay1_path), Replay.from_string(data, use_legacy_parser=False), Replay.from_path(replay1_path, use_legacy_parser=False)]
+        cls._combination_replays = [Replay.from_path(RES / "replay2.osr"), Replay.from_path(RES / "replay2.osr", use_legacy_parser=False)]
+        cls._old_replayid_replays = [Replay.from_path(RES / "replay_old_replayid.osr"), Replay.from_path(RES / "replay_old_replayid.osr", use_legacy_parser=False)]
 
     def test_replay_mode(self):
         for replay in self._replays:
-            self.assertEqual(replay.mode, GameMode.STD, "Game mode is incorrect")
+            self.assertEqual(replay.mode.value, GameMode.STD.value, "Game mode is incorrect")
 
     def test_game_version(self):
         for replay in self._replays:
@@ -53,10 +55,11 @@ class TestStandardReplay(TestCase):
 
     def test_nomod(self):
         for replay in self._replays:
-            self.assertEqual(replay.mods, Mod.NoMod, "Mod combination is wrong")
+            self.assertEqual(replay.mods.value, Mod.NoMod.value, "Mod combination is wrong")
 
     def test_mod_combination(self):
-        self.assertEqual(self._combination_replay.mods, Mod.Hidden | Mod.HardRock, "Mod combination is wrong")
+        for combination_replay in self._combination_replays:
+            self.assertEqual(combination_replay.mods.value, (Mod.Hidden | Mod.HardRock).value, "Mod combination is wrong")
 
     def test_timestamp(self):
         for replay in self._replays:
@@ -64,7 +67,7 @@ class TestStandardReplay(TestCase):
 
     def test_play_data(self):
         for replay in self._replays:
-            self.assertIsInstance(replay.replay_data[0], ReplayEventOsu, "Replay data is wrong")
+            self.assertIsInstance(replay.replay_data[0], (ReplayEventOsu, osucore.ReplayEventOsu), "Replay data is wrong")
             self.assertEqual(len(replay.replay_data), 17498, "Replay data is wrong")
 
     def test_replay_id(self):
@@ -72,47 +75,52 @@ class TestStandardReplay(TestCase):
             self.assertEqual(replay.replay_id, 1040219800)
         # old replays had game_version stored as a short, we want to make sure
         # we can parse it properly instead of erroring
-        self.assertEqual(self._old_replayid_replay.replay_id, 1127598189)
+        for old_replayid_replay in self._old_replayid_replays:
+            self.assertEqual(old_replayid_replay.replay_id, 1127598189)
 
 class TestTaikoReplay(TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.replay = Replay.from_path(RES / "taiko.osr")
+        cls.replays = [Replay.from_path(RES / "taiko.osr"), Replay.from_path(RES / "taiko.osr", use_legacy_parser=False)]
 
     def test_play_data(self):
-        replay_data = self.replay.replay_data
-        self.assertIsInstance(replay_data[0], ReplayEventTaiko, "Replay data is wrong")
-        self.assertEqual(len(replay_data), 17473, "Replay data is wrong")
+        for replay in self.replays:
+            replay_data = replay.replay_data
+            self.assertIsInstance(replay_data[0], (ReplayEventTaiko, osucore.ReplayEventTaiko), "Replay data is wrong")
+            self.assertEqual(len(replay_data), 17473, "Replay data is wrong")
 
 class TestCatchReplay(TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.replay = Replay.from_path(RES / "ctb.osr")
+        cls.replays = [Replay.from_path(RES / "ctb.osr"), Replay.from_path(RES / "ctb.osr", use_legacy_parser=False)]
 
     def test_play_data(self):
-        replay_data = self.replay.replay_data
-        self.assertIsInstance(replay_data[0], ReplayEventCatch, "Replay data is wrong")
-        self.assertEqual(len(replay_data), 10437, "Replay data is wrong")
+        for replay in self.replays:
+            replay_data = replay.replay_data
+            self.assertIsInstance(replay_data[0], (ReplayEventCatch, osucore.ReplayEventCatch), "Replay data is wrong")
+            self.assertEqual(len(replay_data), 10437, "Replay data is wrong")
 
 class TestManiaReplay(TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.replay = Replay.from_path(RES / "mania.osr")
+        cls.replays = [Replay.from_path(RES / "mania.osr"), Replay.from_path(RES / "mania.osr", use_legacy_parser=False)]
 
     def test_play_data(self):
-        play_data = self.replay.replay_data
-        self.assertIsInstance(play_data[0], ReplayEventMania, "Replay data is wrong")
-        self.assertEqual(len(play_data), 17430, "Replay data is wrong")
+        for replay in self.replays:
+            play_data = replay.replay_data
+            self.assertIsInstance(play_data[0], (ReplayEventMania, osucore.ReplayEventMania), "Replay data is wrong")
+            self.assertEqual(len(play_data), 17430, "Replay data is wrong")
 
 class TestLazerReplay(TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.replay = Replay.from_path(RES / "lazer_standard_format.osr")
+        cls.replays = [Replay.from_path(RES / "lazer_standard_format.osr"), Replay.from_path(RES / "lazer_standard_format.osr", use_legacy_parser=False)]
 
     def test_play_data(self):
-        # lazer replays do some unusual things with rng seeds compared to
-        # stable, so make sure it parses ok
-        self.assertEqual(self.replay.rng_seed, 0)
+        for replay in self.replays:
+            # lazer replays do some unusual things with rng seeds compared to
+            # stable, so make sure it parses ok
+            self.assertEqual(replay.rng_seed, 0)

@@ -1,6 +1,7 @@
 from enum import Enum, IntFlag
 from dataclasses import dataclass
 
+
 class GameMode(Enum):
     """
     An osu! game mode.

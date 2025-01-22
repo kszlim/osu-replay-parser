@@ -1,6 +1,6 @@
 [project]
 name = "osrparse"
-version = "7.0.1"
+dynamic = ["version"]
 description = "Parser for osr files and lzma replay streams for osu!"
 readme = "README.md"
 keywords = ["osu!", "osr", "replay", "replays", "parsing", "parser", "python"]
@@ -21,3 +21,7 @@ dev = ["hypothesis"]
 
 [project.urls]
 "Homepage" = "https://github.com/kszlim/osu-replay-parser"
+
+[build-system]
+requires = ["maturin>=1.4"]
+build-backend = "maturin"
