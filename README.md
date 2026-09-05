@@ -77,23 +77,20 @@ Install [uv](https://docs.astral.sh/uv/getting-started/installation/),
 [Rust](https://rustup.rs/), and a C compiler, then run:
 
 ```sh
-uv sync --locked
+uv sync
 uv run maturin develop --release
 uv run pytest -q
 cargo test --locked
 cargo fmt --check
 cargo clippy --locked --all-targets -- -D warnings
-uv run python tools/generate_stubs.py --check
-uv run mypy --strict tests/typing_api.py
+uv run mypy --strict osrparse/_native.pyi tests/typing_api.py
 uv run ruff check
 uv run ruff format --check
 uv run --group docs sphinx-build -W --keep-going -b html docs build/html
 uv build
 uv run twine check dist/*
-uv run python benchmarks/compare.py
 ```
 
-`uv.lock` pins development dependencies; `uv lock --upgrade` refreshes them.
 The `dev` dependency group contains the test and release tools. The existing
 `osrparse[dev]` extra remains available for consumers of the Hypothesis strategies.
 The runtime package has no third-party Python dependencies. uv manages the
@@ -110,14 +107,17 @@ Python versions older than 3.10 are no longer supported. Event fields, list edit
 `vars`, dataclass helpers, pickling, and subclassing remain supported. Timestamp
 encoding uses integer arithmetic to avoid precision loss for distant dates.
 
-See the [Rust implementation notes](docs/rust-port.md) and
-[benchmark results](benchmarks/README.md).
+Type information is provided by the annotated Python model contracts,
+`osrparse/_native.pyi`, and `py.typed`, following
+[PyO3's supported stub-file workflow](https://pyo3.rs/v0.29.2/python-typing-hints.html).
+Maturin includes these files in wheels. CI checks strict consumer typing against
+both the source tree and installed wheels. Experimental binary introspection
+cannot yet describe the Python-installed dataclass contracts and sequence slots.
 
-Type stubs are generated with PyO3's `experimental-inspect` metadata and
-Maturin. After changing the API, run `uv run python tools/generate_stubs.py`.
-The generator reuses the annotated Python model contracts and adds the sequence
-slot overloads that native introspection cannot express. CI checks the generated
-file and type-checks consumer examples. Do not edit `_native.pyi` by hand.
+Development dependencies are declared in `pyproject.toml`; a locally generated
+`uv.lock` is ignored. Cargo.lock remains checked in for reproducible native
+extension builds. Rust 1.98.1 is the development toolchain; source builds require
+Rust 1.85 or newer.
 
 ### Wheels and releases
 
@@ -128,7 +128,7 @@ saved as an Actions artifact. Alpine/musl, Windows ARM64, 32-bit Python, PyPy,
 and free-threaded Python currently require separate support.
 
 To release, update the version in both `pyproject.toml` and `Cargo.toml`, refresh
-the lockfiles, and publish a GitHub release tagged `v<version>`. CI checks that
+Cargo.lock, and publish a GitHub release tagged `v<version>`. CI checks that
 the tag matches, waits for all validation and wheel jobs, attaches the 25 tested
 wheels and source archive to that release, and publishes those same artifacts
 to PyPI. PRs and ordinary pushes only build and test.

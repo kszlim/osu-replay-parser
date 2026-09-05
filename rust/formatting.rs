@@ -4,84 +4,36 @@ use crate::events::Frame;
 use std::fmt::Write;
 
 pub fn float(output: &mut String, value: f64) {
+    use lexical_write_float::{NumberFormatBuilder, Options, ToLexicalWithOptions};
+    use std::num::NonZeroI32;
+
+    const FORMAT: u128 = NumberFormatBuilder::new()
+        .required_exponent_sign(true)
+        .build_strict();
+    const OPTIONS: Options = Options::builder()
+        .positive_exponent_break(NonZeroI32::new(15))
+        .negative_exponent_break(NonZeroI32::new(-4))
+        .build_strict();
+    // Python suppresses NaN's sign and uses lowercase spelling.
     if value.is_nan() {
         output.push_str("nan");
         return;
     }
-    if value.is_infinite() {
-        output.push_str(if value.is_sign_negative() {
-            "-inf"
-        } else {
-            "inf"
-        });
-        return;
-    }
-    if value == 0.0 {
-        output.push_str(if value.is_sign_negative() {
-            "-0.0"
-        } else {
-            "0.0"
-        });
-        return;
-    }
-    if value.is_sign_negative() {
-        output.push('-');
-    }
-    let mut buffer = ryu::Buffer::new();
-    let text = buffer.format_finite(value.abs());
-    let (mantissa, explicit) = match text.split_once('e') {
-        Some((mantissa, exponent)) => (
-            mantissa,
-            exponent
-                .parse::<i32>()
-                .expect("Ryu emits a decimal exponent"),
-        ),
-        None => (text, 0),
-    };
-    let decimal = mantissa.find('.').unwrap_or(mantissa.len());
-    let mut digits = [0u8; 32];
-    let mut length = 0;
-    for byte in mantissa.bytes().filter(|byte| *byte != b'.') {
-        digits[length] = byte;
-        length += 1;
-    }
-    let first = digits[..length]
-        .iter()
-        .position(|byte| *byte != b'0')
-        .expect("nonzero float has a significant digit");
-    let last = digits[..length]
-        .iter()
-        .rposition(|byte| *byte != b'0')
-        .unwrap()
-        + 1;
-    let exponent = explicit + decimal as i32 - first as i32 - 1;
-    let digits = std::str::from_utf8(&digits[first..last]).expect("Ryu emits ASCII digits");
-    if !(-4..16).contains(&exponent) {
-        output.push_str(&digits[..1]);
-        if digits.len() > 1 {
-            output.push('.');
-            output.push_str(&digits[1..]);
-        }
-        write!(output, "e{exponent:+03}").expect("writing to String cannot fail");
-    } else if exponent < 0 {
-        output.push_str("0.");
-        for _ in 0..(-exponent - 1) {
+    let mut buffer = [0u8; lexical_write_float::BUFFER_SIZE];
+    let bytes = value.to_lexical_with_options::<FORMAT>(&mut buffer, &OPTIONS);
+    let text = std::str::from_utf8(bytes).expect("lexical emits ASCII");
+    if let Some((mantissa, exponent)) = text.split_once('e') {
+        // Python omits an integral mantissa's .0 in scientific notation and
+        // pads exponents to at least two digits. Lexical handles the conversion.
+        output.push_str(mantissa.strip_suffix(".0").unwrap_or(mantissa));
+        output.push('e');
+        output.push_str(&exponent[..1]);
+        if exponent.len() == 2 {
             output.push('0');
         }
-        output.push_str(digits);
+        output.push_str(&exponent[1..]);
     } else {
-        let point = exponent as usize + 1;
-        if point >= digits.len() {
-            output.push_str(digits);
-            for _ in digits.len()..point {
-                output.push('0');
-            }
-            output.push_str(".0");
-        } else {
-            output.push_str(&digits[..point]);
-            output.push('.');
-            output.push_str(&digits[point..]);
-        }
+        output.push_str(text);
     }
 }
 

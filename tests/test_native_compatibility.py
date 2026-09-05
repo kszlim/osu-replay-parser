@@ -1,4 +1,4 @@
-"""Contract tests against the frozen Python codec at commit 17d2315."""
+"""Golden format contracts, generated round trips, and malformed-input tests."""
 
 import base64
 import copy
@@ -11,7 +11,7 @@ import weakref
 from pathlib import Path
 
 import pytest
-from hypothesis import given, settings
+from hypothesis import assume, given, settings
 
 from osrparse import (
     GameMode,
@@ -29,55 +29,79 @@ from osrparse import (
     parse_replay_data,
 )
 from osrparse.strategies import replays
-from tests.reference import python_replay as reference
+from tests._wire import GOLDEN, packed_fingerprint, packed_sections, replay_fingerprint
 
 RES = Path(__file__).parent / "resources"
 
 
 @pytest.mark.parametrize("path", sorted(RES.glob("*.osr")), ids=lambda p: p.name)
-def test_all_fixture_fields_and_packed_bytes_match_python(path):
-    data = path.read_bytes()
-    actual = Replay.from_string(data)
-    expected = reference.Replay.from_string(data)
-    assert vars(actual) == vars(expected)
-    assert actual.pack() == expected.pack()
-    assert vars(Replay.from_string(expected.pack())) == vars(
-        reference.Replay.from_string(actual.pack())
-    )
+def test_all_fixture_fields_and_packed_wire_match_golden_results(path):
+    expected_fields, expected_wire, expected_round_trip = GOLDEN[path.name]
+    replay = Replay.from_path(path)
+    assert replay_fingerprint(replay) == expected_fields
+    packed = replay.pack()
+    assert packed_fingerprint(packed) == expected_wire
+    assert replay_fingerprint(Replay.from_string(packed)) == expected_round_trip
 
 
 @given(replays())
 @settings(max_examples=150, deadline=None)
-def test_generated_wire_bytes_and_cross_engine_round_trips(replay):
-    actual = replay.pack()
-    expected = reference._Packer(replay).pack()
-    assert actual == expected
-    assert vars(Replay.from_string(expected)) == vars(
-        reference.Replay.from_string(actual)
+def test_generated_replays_round_trip_all_fields(replay):
+    # These values are reserved control records rather than playable events.
+    assume(all(event.time_delta != -12345 for event in replay.replay_data))
+    assume(
+        not any(
+            isinstance(event, ReplayEventOsu) and event.x == 256 and event.y == -500
+            for event in replay.replay_data[:2]
+        )
     )
+    expected = vars(replay).copy()
+    expected["rng_seed"] = replay.rng_seed or None
+    assert vars(Replay.from_string(replay.pack())) == expected
 
 
 @pytest.mark.parametrize("mode", list(GameMode))
 @pytest.mark.parametrize(
-    "text",
+    "text, records",
     [
-        "0|256|-500|0,0|256|-500|0,16|320|64|5,-12345|0|0|0,",
-        "0|0|0|0,16|320|64|1",
-        "0|0|0|0,16|320|64|1,",
-        "-12345|320|0|0,16|320|64|1",
-        "0|0|0|0,0|0|0|0,0|256|-500|0,",
-        "999999999999999999999999999999|999999999999999999999999999999|0|999999999999999999999999999999,",
-        "-10|-999999999999999999999999999999|0|-999999999999999999999999999999,",
-        " 1_0 | ３２０ |64| 0_1 ,",
+        ("0|256|-500|0,0|256|-500|0,16|320|64|5,-12345|0|0|0,", [(16, 320, 64, 5)]),
+        ("0|0|0|0,16|320|64|1", [(0, 0, 0, 0), (16, 320, 64, 1)]),
+        ("0|0|0|0,16|320|64|1,", [(0, 0, 0, 0), (16, 320, 64, 1)]),
+        ("-12345|320|0|0,16|320|64|1", [(-12345, 320, 0, 0), (16, 320, 64, 1)]),
+        (
+            "0|0|0|0,0|0|0|0,0|256|-500|0,",
+            [(0, 0, 0, 0), (0, 0, 0, 0), (0, 256, -500, 0)],
+        ),
+        (
+            "999999999999999999999999999999|999999999999999999999999999999|0|999999999999999999999999999999,",
+            [(10**30 - 1, 10**30 - 1, 0, 10**30 - 1)],
+        ),
+        (
+            "-10|-999999999999999999999999999999|0|-999999999999999999999999999999,",
+            [(-10, -(10**30 - 1), 0, -(10**30 - 1))],
+        ),
+        (" 1_0 | ３２０ |64| 0_1 ,", [(10, 320, 64, 1)]),
     ],
 )
-def test_event_streams_match_in_every_mode(mode, text):
-    assert parse_replay_data(
-        text, decompressed=True, mode=mode
-    ) == reference.parse_replay_data(text, decompressed=True, mode=mode)
-    compressed = lzma.compress(text.encode("ascii")) if text.isascii() else None
-    if compressed:
-        expected = reference.parse_replay_data(compressed, decoded=True, mode=mode)
+def test_event_stream_contract_in_every_mode(mode, text, records):
+    constructors = {
+        GameMode.STD: lambda time, x, y, keys: ReplayEventOsu(
+            time, float(x), float(y), Key(keys)
+        ),
+        GameMode.TAIKO: lambda time, x, y, keys: ReplayEventTaiko(
+            time, int(x), KeyTaiko(keys)
+        ),
+        GameMode.CTB: lambda time, x, y, keys: ReplayEventCatch(
+            time, float(x), keys == 1
+        ),
+        GameMode.MANIA: lambda time, x, y, keys: ReplayEventMania(
+            time, KeyMania(int(x))
+        ),
+    }
+    expected = [constructors[mode](*record) for record in records]
+    assert parse_replay_data(text, decompressed=True, mode=mode) == expected
+    if text.isascii():
+        compressed = lzma.compress(text.encode("ascii"))
         assert parse_replay_data(compressed, decoded=True, mode=mode) == expected
         assert parse_replay_data(base64.b64encode(compressed), mode=mode) == expected
         assert (
@@ -86,24 +110,63 @@ def test_event_streams_match_in_every_mode(mode, text):
         )
 
 
+@pytest.mark.parametrize("mode", [GameMode.STD, GameMode.CTB])
+def test_native_coordinates_preserve_binary64_precision(mode):
+    data = parse_replay_data(
+        "16|0.10000000000000002|0.20000000000000004|1,",
+        decompressed=True,
+        mode=mode,
+    )
+    assert data._cached_event_count == 0
+    assert data[0].x == 0.10000000000000002
+    if mode is GameMode.STD:
+        assert data[0].y == 0.20000000000000004
+
+
 @pytest.mark.parametrize("format", [lzma.FORMAT_ALONE, lzma.FORMAT_XZ])
 def test_concatenated_lzma_streams_and_trailing_junk(format):
     a = lzma.compress(b"0|0|0|0,", format=format)
     b = lzma.compress(b"16|320|64|1,", format=format)
-    for data in [a, a + b, a + b"junk"]:
-        assert parse_replay_data(data, decoded=True) == reference.parse_replay_data(
-            data, decoded=True
-        )
+    first = ReplayEventOsu(0, 0.0, 0.0, Key(0))
+    second = ReplayEventOsu(16, 320.0, 64.0, Key.M1)
+    for data, expected in [
+        (a, [first]),
+        (a + b, [first, second]),
+        (a + b"junk", [first]),
+    ]:
+        assert parse_replay_data(data, decoded=True) == expected
+
+
+@pytest.mark.parametrize("format", [lzma.FORMAT_ALONE, lzma.FORMAT_XZ])
+def test_truncated_concatenated_streams_follow_stdlib_lzma(format):
+    a = lzma.compress(b"0|0|0|0,", format=format)
+    b = lzma.compress(b"16|320|64|1,", format=format)
+    for length in range(1, len(b)):
+        payload = a + b[:length]
+        with pytest.raises(lzma.LZMAError):
+            lzma.decompress(payload)
+        with pytest.raises(lzma.LZMAError):
+            parse_replay_data(payload, decoded=True)
 
 
 @pytest.mark.parametrize(
     "dict_size, mode", [(None, None), (0, 0), (1 << 16, 1), (1 << 22, 2)]
 )
-def test_compression_options_match_python(dict_size, mode):
+def test_compression_options_match_stdlib_lzma(dict_size, mode):
     replay = Replay.from_path(RES / "replay.osr")
-    assert (
-        replay.pack(dict_size=dict_size, mode=mode)
-        == reference._Packer(replay, dict_size=dict_size, mode=mode).pack()
+    packed = replay.pack(dict_size=dict_size, mode=mode)
+    _, compressed, _ = packed_sections(packed)
+    assert packed_fingerprint(packed) == GOLDEN["replay.osr"][1]
+    assert compressed == lzma.compress(
+        lzma.decompress(compressed),
+        format=lzma.FORMAT_ALONE,
+        filters=[
+            {
+                "id": lzma.FILTER_LZMA1,
+                "dict_size": dict_size or 1 << 21,
+                "mode": mode or lzma.MODE_FAST,
+            }
+        ],
     )
 
 
@@ -177,30 +240,35 @@ def test_replay_protocols_and_enum_identity():
 
 
 @pytest.mark.parametrize(
-    "data",
+    "data, error",
     [
-        b"",
-        b"\xff",
-        b"\x00",
-        b"\x00\0\0\0\0\x01",
-        b"\x00\0\0\0\0\x0b\x80",
-        b"\x00\0\0\0\0\x0b\x01\xff",
+        (b"", struct.error),
+        (b"\xff", ValueError),
+        (b"\x00", struct.error),
+        (b"\x00\0\0\0\0\x01", ValueError),
+        (b"\x00\0\0\0\0\x0b\x80", IndexError),
+        (b"\x00\0\0\0\0\x0b\x01\xff", UnicodeDecodeError),
     ],
 )
-def test_malformed_headers_preserve_exception_class(data):
-    with pytest.raises(Exception) as expected:
-        reference.Replay.from_string(data)
-    with pytest.raises(type(expected.value)):
+def test_malformed_headers_preserve_exception_class(data, error):
+    with pytest.raises(error):
         Replay.from_string(data)
 
 
 @pytest.mark.parametrize(
-    "text", ["", ",", "a|0|0|0", "1|0", "1|a|0|0", "1|0|0|a", "1|0|0|0,broken"]
+    "text, error",
+    [
+        ("", ValueError),
+        (",", ValueError),
+        ("a|0|0|0", ValueError),
+        ("1|0", IndexError),
+        ("1|a|0|0", ValueError),
+        ("1|0|0|a", ValueError),
+        ("1|0|0|0,broken", ValueError),
+    ],
 )
-def test_malformed_events_preserve_exception_class(text):
-    with pytest.raises(Exception) as expected:
-        reference.parse_replay_data(text, decompressed=True)
-    with pytest.raises(type(expected.value)):
+def test_malformed_events_preserve_exception_class(text, error):
+    with pytest.raises(error):
         parse_replay_data(text, decompressed=True)
 
 
@@ -227,54 +295,60 @@ def test_native_extension_is_required():
 
 
 @pytest.mark.parametrize(
-    "options",
+    "options, error",
     [
-        {"dict_size": -1},
-        {"dict_size": 3.5},
-        {"mode": 1 << 40},
-        {"mode": 99},
-        {"dict_size": 1},
+        ({"dict_size": -1}, ValueError),
+        ({"dict_size": 3.5}, ValueError),
+        ({"mode": 1 << 40}, ValueError),
+        ({"mode": 99}, lzma.LZMAError),
+        ({"dict_size": 1}, lzma.LZMAError),
     ],
 )
-def test_invalid_compression_options_preserve_error_class(options):
+def test_invalid_compression_options_preserve_error_class(options, error):
     replay = Replay.from_path(RES / "replay.osr")
-    with pytest.raises(Exception) as expected:
-        reference._Packer(replay, **options).pack()
-    with pytest.raises(type(expected.value)):
+    with pytest.raises(error):
         replay.pack(**options)
 
 
 def test_truthy_decoding_flags():
     text = "0|0|0|0,16|320|64|1,"
-    assert parse_replay_data(text, decompressed=1) == reference.parse_replay_data(
-        text, decompressed=1
-    )
-    data = lzma.compress(text.encode())
-    assert parse_replay_data(data, decoded=1) == reference.parse_replay_data(
-        data, decoded=1
-    )
+    expected = [
+        ReplayEventOsu(0, 0.0, 0.0, Key(0)),
+        ReplayEventOsu(16, 320.0, 64.0, Key.M1),
+    ]
+    assert parse_replay_data(text, decompressed=1) == expected
+    assert parse_replay_data(lzma.compress(text.encode()), decoded=1) == expected
 
 
 def test_truncated_fixture_error_classes():
     data = (RES / "replay.osr").read_bytes()
-    for length in [*range(400), *range(len(data) - 20, len(data))]:
-        try:
-            expected = reference.Replay.from_string(data[:length])
-        except Exception as error:
-            with pytest.raises(type(error)):
+    # Golden boundaries include strings, fixed fields, compressed data, and ID.
+    for start, stop, error in [
+        (0, 5, struct.error),
+        (5, 51, IndexError),
+        (51, 106, struct.error),
+        (106, 108, IndexError),
+        (108, 120, struct.error),
+        (120, 400, lzma.LZMAError),
+        (len(data) - 20, len(data) - 8, lzma.LZMAError),
+        (len(data) - 8, len(data) - 4, struct.error),
+    ]:
+        for length in range(start, stop):
+            with pytest.raises(error):
                 Replay.from_string(data[:length])
-        else:
-            # Removing four ID bytes invokes the supported legacy-ID fallback.
-            assert vars(Replay.from_string(data[:length])) == vars(expected)
+    for length in range(len(data) - 4, len(data)):
+        # Four-byte IDs remain accepted even when trailing high bytes are absent.
+        assert (
+            replay_fingerprint(Replay.from_string(data[:length]))
+            == GOLDEN["replay.osr"][0]
+        )
 
 
 @pytest.mark.parametrize(
     "payload", [b"", b"bad lzma", b"\xfd7zXZ\0", lzma.compress(b"0|0|0|0,")[:-1]]
 )
 def test_invalid_compressed_data_preserves_error_class(payload):
-    with pytest.raises(Exception) as expected:
-        reference.parse_replay_data(payload, decoded=True)
-    with pytest.raises(type(expected.value)):
+    with pytest.raises(lzma.LZMAError):
         parse_replay_data(payload, decoded=True)
 
 

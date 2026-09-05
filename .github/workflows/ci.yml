@@ -45,7 +45,7 @@ jobs:
       - uses: PyO3/maturin-action@v1
         with:
           maturin-version: "1.15.0"
-          rust-toolchain: "1.97.0"
+          rust-toolchain: "1.98.1"
           target: ${{ matrix.platform.target }}
           manylinux: "2014"
           args: >-
@@ -69,13 +69,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@1.97.0
+      - uses: dtolnay/rust-toolchain@1.98.1
         with:
           components: rustfmt, clippy
       - uses: astral-sh/setup-uv@v7
         with:
           version: "0.12.10"
           enable-cache: true
+          cache-dependency-glob: pyproject.toml
           python-version: "3.14"
       - name: Check release tag against package versions
         if: github.event_name == 'release'
@@ -90,17 +91,16 @@ jobs:
           assert python == rust, (python, rust)
           assert os.environ["RELEASE_TAG"] == f"v{python}", "Release tag must match package version"
           PY
-      - run: uv sync --locked --group docs
+      - run: uv sync --group docs
       - run: cargo fmt --check
       - run: cargo test --locked
       - run: cargo clippy --locked --all-targets -- -D warnings
-      - run: uv run --locked python tools/generate_stubs.py --check
-      - run: uv run --locked mypy --strict tests/typing_api.py
-      - run: uv run --locked ruff check
-      - run: uv run --locked ruff format --check
-      - run: uv run --locked --group docs sphinx-build -W --keep-going -b html docs build/html
+      - run: uv run mypy --strict osrparse/_native.pyi tests/typing_api.py
+      - run: uv run ruff check
+      - run: uv run ruff format --check
+      - run: uv run --group docs sphinx-build -W --keep-going -b html docs build/html
       - run: uv build
-      - run: uv run --locked twine check dist/*
+      - run: uv run twine check dist/*
       - name: Test installed wheel outside checkout
         run: |
           uv venv /tmp/osrparse-wheel
@@ -109,14 +109,11 @@ jobs:
           cd /tmp/osrparse-wheel
           bin/python -m pytest -q tests
           bin/python -m mypy --strict tests/typing_api.py
-      - name: Record release benchmarks
-        run: uv run --locked python benchmarks/compare.py --iterations 10 --repeats 5 --min-parse-speedup 0 --min-pack-speedup 0
       - uses: actions/upload-artifact@v4
         with:
-          name: distributions-and-benchmarks
+          name: source-build-validation
           path: |
             dist/*
-            benchmarks/results.json
       - uses: actions/upload-artifact@v4
         with:
           name: release-sdist

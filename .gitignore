@@ -70,3 +70,6 @@ setup.cfg
 
 #Ipython Notebook
 .ipynb_checkpoints
+
+# Resolve local development dependencies without committing an environment lock.
+uv.lock

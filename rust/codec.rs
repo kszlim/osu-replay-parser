@@ -1,9 +1,10 @@
 //! The binary cursor and LZMA transport. This module has no Python dependency.
 
-use std::io::{self, Write};
+use std::io::{self, Read, Write};
 use zerocopy::{FromBytes, Immutable, KnownLayout, Unaligned};
 
-use liblzma::stream::{Action, LzmaOptions, Mode, Status, Stream};
+use liblzma::bufread::XzDecoder;
+use liblzma::stream::{LzmaOptions, Mode, Stream};
 use liblzma::write::XzEncoder;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -115,17 +116,9 @@ impl<'a> Reader<'a> {
 
 pub fn write_string(output: &mut Vec<u8>, text: &[u8]) {
     output.push(11);
-    let mut length = text.len();
-    // Preserve the legacy writer's non-minimal encoding at bit-6 boundaries.
-    loop {
-        let byte = (length & 0x7f) as u8;
-        length >>= 7;
-        if length == 0 && byte & 0x40 == 0 {
-            output.push(byte);
-            break;
-        }
-        output.push(byte | 0x80);
-    }
+    // The original writer used signed LEB128 for positive lengths. This is
+    // valid, occasionally non-minimal ULEB128 and preserves its wire bytes.
+    leb128::write::signed(output, text.len() as i64).expect("writing to Vec cannot fail");
     output.extend_from_slice(text);
 }
 
@@ -136,43 +129,27 @@ pub fn ticks_to_microseconds(ticks: i64) -> i64 {
 }
 
 pub fn decompress(mut data: &[u8]) -> io::Result<Vec<u8>> {
-    // Most replay streams expand several-fold. Reserve a bounded initial
-    // buffer to avoid repeated reallocations; the checked loop still grows
-    // without truncating streams that exceed this estimate.
     let capacity = data.len().saturating_mul(6).clamp(64 * 1024, 1024 * 1024);
     let mut output = Vec::with_capacity(capacity);
     let mut completed_stream = false;
     loop {
-        let mut stream = Stream::new_auto_decoder(u64::MAX, 0)?;
+        let stream = Stream::new_auto_decoder(u64::MAX, 0)?;
+        let mut decoder = XzDecoder::new_stream(data, stream);
         let start = output.len();
-        loop {
-            output.reserve(64 * 1024);
-            let before_in = stream.total_in();
-            let before_out = stream.total_out();
-            let status = match stream.process_vec(data, &mut output, Action::Run) {
-                Ok(status) => status,
-                Err(_) if completed_stream => {
-                    // Python ignores invalid trailing data after a complete
-                    // stream, but never returns partially decoded trailing data.
-                    output.truncate(start);
-                    return Ok(output);
-                }
-                Err(error) => return Err(error.into()),
-            };
-            data = &data[(stream.total_in() - before_in) as usize..];
-            if status == Status::StreamEnd {
-                completed_stream = true;
-                if data.is_empty() {
-                    return Ok(output);
-                }
-                break;
+        match decoder.read_to_end(&mut output) {
+            Ok(_) => (),
+            Err(error) if completed_stream && error.kind() != io::ErrorKind::UnexpectedEof => {
+                // Like Python, ignore invalid trailing data after a complete
+                // stream, but reject a truncated subsequent stream.
+                output.truncate(start);
+                return Ok(output);
             }
-            if stream.total_in() == before_in && stream.total_out() == before_out {
-                return Err(io::Error::new(
-                    io::ErrorKind::UnexpectedEof,
-                    "Compressed data ended before the end-of-stream marker was reached",
-                ));
-            }
+            Err(error) => return Err(error),
+        }
+        completed_stream = true;
+        data = decoder.into_inner();
+        if data.is_empty() {
+            return Ok(output);
         }
     }
 }
@@ -222,6 +199,24 @@ mod tests {
         for length in 0..4 {
             assert!(Reader::new(&bytes[..length]).replay_id().is_err());
         }
+    }
+
+    #[test]
+    fn nonminimal_and_oversized_string_lengths_keep_slice_semantics() {
+        // Python accepts redundant zero groups beyond a machine integer's
+        // width. Conventional ULEB128 readers reject this legacy input.
+        let mut empty = vec![11];
+        empty.extend_from_slice(&[0x80; 20]);
+        empty.extend_from_slice(b"\0tail");
+        assert_eq!(Reader::new(&empty).string(), Ok(Some(b"".as_slice())));
+
+        let mut oversized = vec![11];
+        oversized.extend_from_slice(&[0xff; 20]);
+        oversized.extend_from_slice(b"\0tail");
+        assert_eq!(
+            Reader::new(&oversized).string(),
+            Ok(Some(b"tail".as_slice()))
+        );
     }
 
     #[test]

@@ -49,19 +49,9 @@ impl Numbers for NativeNumbers {
     type Float = f64;
     type Error = NeedsPython;
     fn integer(&self, text: &str) -> Result<i64, NeedsPython> {
-        use atoi::FromRadix10SignedChecked;
-        let bytes = text.trim().as_bytes();
-        if bytes.len() > 64 {
-            return Err(NeedsPython);
-        }
-        let sign = usize::from(matches!(bytes.first(), Some(b'+' | b'-')));
-        let (value, consumed) = i64::from_radix_10_signed_checked(bytes);
-        if consumed == bytes.len() && consumed > sign {
-            value.ok_or(NeedsPython)
-        } else {
-            Err(NeedsPython)
-        }
+        text.trim().parse().map_err(|_| NeedsPython)
     }
+
     fn float(&self, text: &str) -> Result<f64, NeedsPython> {
         let value: f64 = fast_float2::parse(text.trim()).map_err(|_| NeedsPython)?;
         // Python storage retains the interpreter's NaN equality behavior.

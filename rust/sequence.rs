@@ -99,7 +99,7 @@ fn list<'py>(slf: &Bound<'py, ReplayData>) -> PyResult<Bound<'py, PyList>> {
 #[pymethods]
 impl ReplayData {
     #[new]
-    #[pyo3(signature = (items: "Iterable[ReplayEvent] | None"=None))]
+    #[pyo3(signature = (items=None))]
     fn new(py: Python<'_>, items: Option<&Bound<'_, PyAny>>) -> PyResult<Self> {
         let values = match items {
             Some(items) => PyList::new(py, items.try_iter()?.collect::<PyResult<Vec<_>>>()?)?,
@@ -179,25 +179,21 @@ impl ReplayData {
         list(slf)?.call_method1("__delitem__", (index,))?;
         Ok(())
     }
-    #[pyo3(signature = (value: "ReplayEvent"))]
     fn append(slf: &Bound<'_, Self>, value: &Bound<'_, PyAny>) -> PyResult<()> {
         list(slf)?.append(value)
     }
-    #[pyo3(signature = (values: "Iterable[ReplayEvent]"))]
     fn extend(slf: &Bound<'_, Self>, values: &Bound<'_, PyAny>) -> PyResult<()> {
         list(slf)?.call_method1("extend", (values,))?;
         Ok(())
     }
-    #[pyo3(signature = (index, value: "ReplayEvent"))]
     fn insert(slf: &Bound<'_, Self>, index: isize, value: &Bound<'_, PyAny>) -> PyResult<()> {
         list(slf)?.call_method1("insert", (index, value))?;
         Ok(())
     }
-    #[pyo3(signature = (index=-1) -> "ReplayEvent")]
+    #[pyo3(signature = (index=-1))]
     fn pop(slf: &Bound<'_, Self>, index: isize) -> PyResult<Py<PyAny>> {
         Ok(list(slf)?.call_method1("pop", (index,))?.unbind())
     }
-    #[pyo3(signature = (value: "ReplayEvent"))]
     fn remove(slf: &Bound<'_, Self>, value: &Bound<'_, PyAny>) -> PyResult<()> {
         list(slf)?.call_method1("remove", (value,))?;
         Ok(())
@@ -225,7 +221,7 @@ impl ReplayData {
         list(slf)?.call_method0("reverse")?;
         Ok(())
     }
-    #[pyo3(signature = (*, key: "Callable[[ReplayEvent], Any] | None"=None, reverse=false))]
+    #[pyo3(signature = (*, key=None, reverse=false))]
     fn sort(slf: &Bound<'_, Self>, key: Option<&Bound<'_, PyAny>>, reverse: bool) -> PyResult<()> {
         let kwargs = pyo3::types::PyDict::new(slf.py());
         kwargs.set_item("key", key)?;
@@ -233,11 +229,10 @@ impl ReplayData {
         list(slf)?.call_method("sort", (), Some(&kwargs))?;
         Ok(())
     }
-    #[pyo3(signature = (value: "ReplayEvent"))]
     fn count(slf: &Bound<'_, Self>, value: &Bound<'_, PyAny>) -> PyResult<usize> {
         list(slf)?.call_method1("count", (value,))?.extract()
     }
-    #[pyo3(signature = (value: "ReplayEvent", start=0, stop=None))]
+    #[pyo3(signature = (value, start=0, stop=None))]
     fn index(
         slf: &Bound<'_, Self>,
         value: &Bound<'_, PyAny>,
@@ -279,7 +274,6 @@ impl ReplayData {
     fn __repr__(slf: &Bound<'_, Self>) -> PyResult<String> {
         Ok(list(slf)?.repr()?.to_str()?.to_owned())
     }
-    #[pyo3(signature = () -> "list[ReplayEvent]")]
     fn copy(slf: &Bound<'_, Self>) -> PyResult<Py<PyList>> {
         Ok(list(slf)?
             .get_slice(0, slf.borrow().length(slf.py()))

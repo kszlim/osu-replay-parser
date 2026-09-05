@@ -1,6 +1,7 @@
 import copy
 import dataclasses
 import gc
+import lzma
 import pickle
 import struct
 import weakref
@@ -13,13 +14,15 @@ from hypothesis import strategies as st
 from osrparse import (
     GameMode,
     Key,
+    KeyMania,
+    KeyTaiko,
     Replay,
     ReplayData,
     ReplayEventOsu,
     _native,
     parse_replay_data,
 )
-from tests.reference import python_replay as reference
+from tests._wire import GOLDEN, packed_fingerprint, packed_sections
 
 RES = Path(__file__).parent / "resources"
 
@@ -50,10 +53,9 @@ def test_native_replay_and_lazy_views_preserve_identity_and_lifetime():
 
 def test_slices_materialize_only_requested_views():
     data = Replay.from_path(RES / "replay.osr").replay_data
-    expected = reference.Replay.from_path(RES / "replay.osr").replay_data
-    assert data[2:6] == expected[2:6]
+    assert [event.time_delta for event in data[2:6]] == [21, 125, 167, 168]
     assert data._cached_event_count == 4
-    assert data[-1:-4:-1] == expected[-1:-4:-1]
+    assert [event.time_delta for event in data[-1:-4:-1]] == [166, 167, 167]
     assert data._cached_event_count == 7
     with pytest.raises(ValueError):
         data[::0]
@@ -69,18 +71,18 @@ def test_pack_does_not_materialize_events(filename):
     packed = replay.pack()
     assert replay._cached_field_count == 0
     assert replay._cached_event_count == 0
-    assert packed == reference.Replay.from_path(RES / filename).pack()
+    assert packed_fingerprint(packed) == GOLDEN[filename][1]
     assert replay._cached_event_count == 0
 
 
 def test_pack_merges_edited_view_with_untouched_native_frames():
     replay = Replay.from_path(RES / "replay.osr")
-    expected = reference.Replay.from_path(RES / "replay.osr")
+    expected = vars(Replay.from_path(RES / "replay.osr"))
     data = replay.replay_data
-    data[3].x = expected.replay_data[3].x = 123.5
-    data[7].keys = expected.replay_data[7].keys = Key.K2
-    replay.username = expected.username = "編集"
-    assert replay.pack() == expected.pack()
+    data[3].x = expected["replay_data"][3].x = 123.5
+    data[7].keys = expected["replay_data"][7].keys = Key.K2
+    replay.username = expected["username"] = "編集"
+    assert vars(Replay.from_string(replay.pack())) == expected
     assert data._cached_event_count == 2
 
 
@@ -175,12 +177,20 @@ def test_float_tie_regression():
 def test_negative_native_flags_pack_like_python(mask, mode):
     replay = Replay.from_path(RES / "replay.osr")
     replay.mode = mode
+    replay.rng_seed = None
     text = f"16|{mask if mode is GameMode.MANIA else 320}|64|{mask},"
     replay.replay_data = parse_replay_data(text, decompressed=True, mode=mode)
     actual = replay.pack()
     assert replay.replay_data._cached_event_count == 0
-    expected = reference._Packer(replay).pack()
-    assert actual == expected
+    enum = {GameMode.STD: Key, GameMode.TAIKO: KeyTaiko, GameMode.MANIA: KeyMania}[mode]
+    keys = enum(mask).value
+    expected = {
+        GameMode.STD: f"16|320.0|64.0|{keys},",
+        GameMode.TAIKO: f"16|320|0|{keys},",
+        GameMode.MANIA: f"16|{keys}|0|0,",
+    }[mode]
+    _, compressed, _ = packed_sections(actual)
+    assert lzma.decompress(compressed).decode() == expected
 
 
 def test_sequence_comparisons_and_index_protocol():
@@ -199,12 +209,14 @@ def test_sequence_comparisons_and_index_protocol():
 def test_checked_integer_parser_keeps_python_semantics(value):
     text = f"{value}|0|0|0,"
     try:
-        expected = reference.parse_replay_data(text, decompressed=True)
-    except Exception as error:
-        with pytest.raises(type(error)):
+        time = int(value)
+    except ValueError:
+        with pytest.raises(ValueError):
             parse_replay_data(text, decompressed=True)
     else:
-        assert parse_replay_data(text, decompressed=True) == expected
+        assert parse_replay_data(text, decompressed=True) == [
+            ReplayEventOsu(time, 0.0, 0.0, Key(0))
+        ]
 
 
 def test_exhausted_iterator_stays_exhausted_and_releases_sequence():
@@ -250,17 +262,14 @@ def test_cached_header_reads_do_not_force_python_packing():
     packed = replay.pack()
     assert replay._cached_field_count == count
     assert replay._cached_event_count == 1
-    assert packed == reference.Replay.from_path(RES / "replay.osr").pack()
+    assert packed_fingerprint(packed) == GOLDEN["replay.osr"][1]
 
 
 def test_lifebar_edits_are_not_hidden_by_native_header_storage():
-    replay = Replay.from_path(RES / "replay.osr")
-    expected = reference.Replay.from_path(RES / "replay.osr")
     from osrparse import LifeBarState
 
-    replay.life_bar_graph = expected.life_bar_graph = [LifeBarState(10, 0.5)]
-    data = replay.pack()
-    replay = Replay.from_string(data)
-    expected = reference.Replay.from_string(data)
-    replay.life_bar_graph[0].life = expected.life_bar_graph[0].life = 0.75
-    assert replay.pack() == expected.pack()
+    replay = Replay.from_path(RES / "replay.osr")
+    replay.life_bar_graph = [LifeBarState(10, 0.5)]
+    replay = Replay.from_string(replay.pack())
+    replay.life_bar_graph[0].life = 0.75
+    assert Replay.from_string(replay.pack()).life_bar_graph == [LifeBarState(10, 0.75)]

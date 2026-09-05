@@ -200,7 +200,6 @@ pub(crate) fn timestamp<'py>(py: Python<'py>, ticks: i64) -> PyResult<Object<'py
 }
 
 #[pyfunction]
-#[pyo3(signature = (data) -> "datetime")]
 pub fn unpack_timestamp<'py>(py: Python<'py>, data: &[u8]) -> PyResult<Object<'py>> {
     let ticks = Reader::new(data).long().map_err(|e| read_error(py, e))?;
     timestamp(py, ticks)
@@ -249,7 +248,7 @@ pub fn unpack(py: Python<'_>, data: &[u8]) -> PyResult<Py<replay::Replay>> {
 }
 
 #[pyfunction]
-#[pyo3(signature = (data: "str | bytes", *, decoded=false, decompressed=false, mode: "GameMode"))]
+#[pyo3(signature = (data, *, decoded=false, decompressed=false, mode))]
 pub fn parse_replay_data<'py>(
     py: Python<'py>,
     data: &Object<'py>,
@@ -470,7 +469,7 @@ fn encode_error(py: Python<'_>, error: storage::EncodeError) -> PyErr {
 }
 
 #[pyfunction]
-#[pyo3(signature = (replay: "Replay", *, dict_size: "int | None"=None, mode: "int | None"=None))]
+#[pyo3(signature = (replay, *, dict_size=None, mode=None))]
 pub fn pack<'py>(
     py: Python<'py>,
     replay: &Object<'py>,
