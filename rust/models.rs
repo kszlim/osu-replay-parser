@@ -16,6 +16,10 @@ pub struct ReplayEvent {
 }
 
 impl ReplayEvent {
+    pub fn is_native(&self) -> bool {
+        self.state.is_none()
+    }
+
     pub fn from_frame(frame: Frame, keys: Option<Py<PyAny>>) -> Self {
         Self {
             frame,

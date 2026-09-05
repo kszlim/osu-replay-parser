@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+from collections.abc import MutableSequence
 from dataclasses import dataclass
 from datetime import datetime
 from os import PathLike
 from typing import BinaryIO
 
 from osrparse import _native
-from osrparse.utils import GameMode, LifeBarState, Mod, ReplayEvent
+from osrparse.utils import GameMode, LifeBarState, Mod, ReplayEvent, _native_model
 from osrparse.utils import Key as Key
 from osrparse.utils import KeyMania as KeyMania
 from osrparse.utils import KeyTaiko as KeyTaiko
@@ -77,7 +78,7 @@ class Replay:
         The mods this replay was played with.
     life_bar_graph: list[LifeBarState] | None
         The life bar of this replay over time.
-    replay_data: list[ReplayEvent]
+    replay_data: MutableSequence[ReplayEvent]
         The replay data of the replay, including cursor position and keys
         pressed.
     replay_id: int
@@ -104,7 +105,7 @@ class Replay:
     mods: Mod
     life_bar_graph: list[LifeBarState] | None
     timestamp: datetime
-    replay_data: list[ReplayEvent]
+    replay_data: MutableSequence[ReplayEvent]
     replay_id: int
     rng_seed: int | None
 
@@ -226,7 +227,7 @@ def parse_replay_data(
     decoded: bool = False,
     decompressed: bool = False,
     mode: GameMode = GameMode.STD,
-) -> list[ReplayEvent]:
+) -> MutableSequence[ReplayEvent]:
     """
     Parses the replay data portion of a replay from a string. This method is
     suitable for use with the replay data returned by api v1's ``/get_replay``
@@ -260,3 +261,48 @@ def parse_replay_data(
     return _native.parse_replay_data(
         data_string, decoded=bool(decoded), decompressed=bool(decompressed), mode=mode
     )
+
+
+# Class-level dataclass metadata stays available without touching replay data.
+# Instance introspection explicitly materializes ordinary Python containers so
+# standard dataclasses.asdict/replace and vars continue to work without patches
+# to the standard library.
+
+_ReplayTemplate = Replay
+Replay = _native_model(_ReplayTemplate)
+for _method in (
+    "from_path",
+    "from_file",
+    "from_string",
+    "write_path",
+    "write_file",
+    "pack",
+):
+    setattr(Replay, _method, _ReplayTemplate.__dict__[_method])
+
+
+def _replay_getattribute(self, name):
+    if name == "__dataclass_fields__":
+        self._materialize()
+    return object.__getattribute__(self, name)
+
+
+Replay.__getattribute__ = _replay_getattribute
+ReplayData = _native.ReplayData
+MutableSequence.register(ReplayData)
+
+
+def _replay_subclass(cls, **kwargs):
+    super(Replay, cls).__init_subclass__(**kwargs)
+    previous = cls.__getattribute__
+    descriptor = Replay.__dict__["__dict__"]
+
+    def getattribute(self, name):
+        if name == "__dict__":
+            return descriptor.__get__(self, type(self))
+        return previous(self, name)
+
+    cls.__getattribute__ = getattribute
+
+
+Replay.__init_subclass__ = classmethod(_replay_subclass)

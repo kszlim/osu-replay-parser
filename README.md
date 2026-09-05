@@ -8,10 +8,14 @@ This is a parser for the ``.osr`` format for osu! replay files, as described by 
 
 Requires Python 3.10 or newer (tested through Python 3.14).
 
-The replay codec and event storage are implemented in Rust with PyO3. Replay
-headers remain Python dataclasses; native event objects retain dataclass helpers
-and mutable fields. Game modes, mods, and key flags remain Python enums, so
-identity comparisons such as `replay.mode is GameMode.STD` work.
+Replays are decoded into Rust-owned headers and event vectors. `Replay` is a
+lightweight PyO3 object, and `replay.replay_data` is a lazy `ReplayData` mutable
+sequence. Event wrappers are created only when accessed. Game modes, mods, and
+key flags remain Python enum singletons, so `replay.mode is GameMode.STD` works.
+
+`ReplayData` is not a built-in list; use `list(replay.replay_data)` when one is
+required. Dataclass introspection and structural edits materialize Python data
+as needed, while preserving existing event references and edits.
 
 To install:
 

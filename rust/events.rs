@@ -115,11 +115,23 @@ pub fn parse(text: &str, mode: Mode) -> Result<(Vec<Frame>, Option<i64>), NeedsC
 }
 
 fn integer(text: &str) -> Result<i64, NeedsCompatibility> {
-    text.trim().parse().map_err(|_| NeedsCompatibility)
+    use atoi::FromRadix10SignedChecked;
+    let bytes = text.trim().as_bytes();
+    // Very long spellings use Python's active integer-string limit.
+    if bytes.len() > 64 {
+        return Err(NeedsCompatibility);
+    }
+    let sign = usize::from(matches!(bytes.first(), Some(b'+' | b'-')));
+    let (value, consumed) = i64::from_radix_10_signed_checked(bytes);
+    if consumed == bytes.len() && consumed > sign {
+        value.ok_or(NeedsCompatibility)
+    } else {
+        Err(NeedsCompatibility)
+    }
 }
 
 fn float(text: &str) -> Result<f64, NeedsCompatibility> {
-    let value: f64 = text.trim().parse().map_err(|_| NeedsCompatibility)?;
+    let value: f64 = fast_float2::parse(text.trim()).map_err(|_| NeedsCompatibility)?;
     // Python dataclass equality also observes object identity for NaNs.
     // Keep non-finite values in Python storage through the compatibility path.
     if value.is_finite() {

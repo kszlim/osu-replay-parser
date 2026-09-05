@@ -12,7 +12,8 @@ use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyBytes, PyDict, PyFloat, PyInt, PyList, PyString, PyTuple, PyType};
 
 use crate::codec::{self, ReadError, Reader};
-use crate::{events, models};
+use crate::{events, formatting, models, replay, sequence::ReplayData, storage};
+use std::sync::Arc;
 
 type Object<'py> = Bound<'py, PyAny>;
 
@@ -64,6 +65,7 @@ fn string<'py>(py: Python<'py>, reader: &mut Reader<'_>) -> PyResult<Object<'py>
 
 struct Api<'py> {
     py: Python<'py>,
+    legacy_flags: bool,
     int: Object<'py>,
     float: Object<'py>,
     utils: Bound<'py, PyModule>,
@@ -74,6 +76,7 @@ impl<'py> Api<'py> {
         let builtins = py.import("builtins")?;
         Ok(Self {
             py,
+            legacy_flags: py.version_info().minor < 11,
             int: builtins.getattr("int")?,
             float: builtins.getattr("float")?,
             utils: py.import("osrparse.utils")?,
@@ -120,46 +123,27 @@ impl<'py> Api<'py> {
         Ok(result.into_any())
     }
 
-    fn events(
-        &self,
-        text: &str,
-        mode: &Object<'py>,
-    ) -> PyResult<(Bound<'py, PyList>, Object<'py>)> {
+    fn events(&self, text: &str, mode: &Object<'py>) -> PyResult<(Object<'py>, Object<'py>)> {
         let modes = self.utils.getattr("GameMode")?;
         let selected = [
-            (events::Mode::Osu, "STD", "Key"),
-            (events::Mode::Taiko, "TAIKO", "KeyTaiko"),
-            (events::Mode::Catch, "CTB", "Key"),
-            (events::Mode::Mania, "MANIA", "KeyMania"),
+            (events::Mode::Osu, "STD"),
+            (events::Mode::Taiko, "TAIKO"),
+            (events::Mode::Catch, "CTB"),
+            (events::Mode::Mania, "MANIA"),
         ]
         .into_iter()
-        .find(|(_, name, _)| modes.getattr(*name).is_ok_and(|member| mode.is(member)));
-        if let Some((kind, _, key_name)) = selected {
+        .find(|(_, name)| modes.getattr(*name).is_ok_and(|member| mode.is(member)));
+        if let Some((kind, _)) = selected {
             if let Ok((frames, seed)) = self.py.detach(|| events::parse(text, kind)) {
-                let key_type = self.utils.getattr(key_name)?;
-                let mut cache = HashMap::<i64, Py<PyAny>>::new();
-                let mut result = Vec::with_capacity(frames.len());
-                for frame in frames {
-                    let keys = if let Some(value) = frame.keys() {
-                        let member = match cache.entry(value) {
-                            std::collections::hash_map::Entry::Occupied(entry) => entry.into_mut(),
-                            std::collections::hash_map::Entry::Vacant(entry) => {
-                                entry.insert(key_type.call1((value,))?.unbind())
-                            }
-                        };
-                        Some(member.clone_ref(self.py))
-                    } else {
-                        None
-                    };
-                    result.push(models::into_python(self.py, frame, keys)?);
-                }
+                let data = Py::new(self.py, ReplayData::from_frames(Arc::new(frames)))?;
                 return Ok((
-                    PyList::new(self.py, result)?,
+                    data.into_bound(self.py).into_any(),
                     seed.into_pyobject(self.py)?.into_any(),
                 ));
             }
         }
-        self.events_compat(text, mode)
+        let (data, seed) = self.events_compat(text, mode)?;
+        Ok((data.into_any(), seed))
     }
 
     fn events_compat(
@@ -248,7 +232,7 @@ fn flag<'py>(
     }
 }
 
-fn timestamp<'py>(py: Python<'py>, ticks: i64) -> PyResult<Object<'py>> {
+pub(crate) fn timestamp<'py>(py: Python<'py>, ticks: i64) -> PyResult<Object<'py>> {
     let datetime = py.import("datetime")?;
     let keywords = PyDict::new(py);
     keywords.set_item("microseconds", codec::ticks_to_microseconds(ticks))?;
@@ -274,6 +258,11 @@ pub fn unpack<'py>(
     data: &[u8],
     replay_type: &Object<'py>,
 ) -> PyResult<Object<'py>> {
+    if let Some(storage) = py.detach(|| storage::parse(data)) {
+        return Ok(Py::new(py, replay::Replay::from_storage(storage))?
+            .into_bound(py)
+            .into_any());
+    }
     let api = Api::new(py)?;
     let mut reader = Reader::new(data);
     let mode = reader.byte().map_err(|e| read_error(py, e))?;
@@ -318,7 +307,7 @@ pub fn parse_events<'py>(
     py: Python<'py>,
     text: &str,
     mode: &Object<'py>,
-) -> PyResult<(Bound<'py, PyList>, Object<'py>)> {
+) -> PyResult<(Object<'py>, Object<'py>)> {
     Api::new(py)?.events(text, mode)
 }
 
@@ -330,7 +319,7 @@ pub fn parse_replay_data<'py>(
     decoded: bool,
     decompressed: bool,
     mode: &Object<'py>,
-) -> PyResult<Bound<'py, PyList>> {
+) -> PyResult<Object<'py>> {
     let mut data = data.clone();
     if !decoded && !decompressed {
         data = py.import("base64")?.getattr("b64decode")?.call1((data,))?;
@@ -340,6 +329,10 @@ pub fn parse_replay_data<'py>(
         let bytes = py
             .detach(|| codec::decompress(&bytes))
             .map_err(|e| exception(py, "lzma", "LZMAError", e.to_string()))?;
+        if bytes.is_ascii() {
+            let text = std::str::from_utf8(&bytes).expect("ASCII is valid UTF-8");
+            return Api::new(py)?.events(text, mode).map(|(events, _)| events);
+        }
         data = decode(py, &bytes, c"ascii")?.into_any();
     }
     let text = data.cast::<PyString>()?.to_str()?;
@@ -436,48 +429,91 @@ fn pack_lifebar(api: &Api<'_>, replay: &Object<'_>) -> PyResult<String> {
     Ok(output)
 }
 
-fn pack_events(api: &Api<'_>, replay: &Object<'_>) -> PyResult<String> {
-    let osu = api.utils.getattr("ReplayEventOsu")?;
-    let taiko = api.utils.getattr("ReplayEventTaiko")?;
-    let catch = api.utils.getattr("ReplayEventCatch")?;
-    let mania = api.utils.getattr("ReplayEventMania")?;
-    let events = replay.getattr("replay_data")?;
-    let capacity = events.len().unwrap_or(0).saturating_mul(32);
-    let mut output = String::with_capacity(capacity);
-    for event in events.try_iter()? {
-        let event = event?;
-        let time = event.getattr("time_delta")?;
-        let kind = if event.is_instance(&osu)? {
-            EventKind::Osu
-        } else if event.is_instance(&taiko)? {
-            EventKind::Taiko
-        } else if event.is_instance(&catch)? {
-            EventKind::Catch
-        } else if event.is_instance(&mania)? {
-            EventKind::Mania
-        } else {
-            continue;
-        };
-        append_display(&mut output, &time)?;
+fn append_event(api: &Api<'_>, event: &Object<'_>, output: &mut String) -> PyResult<()> {
+    if event.is_exact_instance_of::<models::ReplayEventOsu>()
+        || event.is_exact_instance_of::<models::ReplayEventTaiko>()
+        || event.is_exact_instance_of::<models::ReplayEventCatch>()
+        || event.is_exact_instance_of::<models::ReplayEventMania>()
+    {
+        let native = event.cast::<models::ReplayEvent>()?.borrow();
+        if native.is_native() {
+            formatting::frame(output, native.frame, api.legacy_flags);
+            return Ok(());
+        }
+    }
+    let time = event.getattr("time_delta")?;
+    let kind = if event.is_instance(&api.utils.getattr("ReplayEventOsu")?)? {
+        EventKind::Osu
+    } else if event.is_instance(&api.utils.getattr("ReplayEventTaiko")?)? {
+        EventKind::Taiko
+    } else if event.is_instance(&api.utils.getattr("ReplayEventCatch")?)? {
+        EventKind::Catch
+    } else if event.is_instance(&api.utils.getattr("ReplayEventMania")?)? {
+        EventKind::Mania
+    } else {
+        return Ok(());
+    };
+    append_display(output, &time)?;
+    output.push('|');
+    if kind == EventKind::Mania {
+        append_display(output, &event.getattr("keys")?.getattr("value")?)?;
+        output.push_str("|0|0,");
+    } else {
+        append_display(output, &event.getattr("x")?)?;
         output.push('|');
-        if kind == EventKind::Mania {
-            append_display(&mut output, &event.getattr("keys")?.getattr("value")?)?;
-            output.push_str("|0|0,");
-        } else {
-            append_display(&mut output, &event.getattr("x")?)?;
+        if kind == EventKind::Osu {
+            append_display(output, &event.getattr("y")?)?;
             output.push('|');
-            if kind == EventKind::Osu {
-                append_display(&mut output, &event.getattr("y")?)?;
-                output.push('|');
-            } else {
-                output.push_str("0|");
+        } else {
+            output.push_str("0|");
+        }
+        if kind == EventKind::Catch {
+            append_display(output, &api.int.call1((event.getattr("dashing")?,))?)?;
+        } else {
+            append_display(output, &event.getattr("keys")?.getattr("value")?)?;
+        }
+        output.push(',');
+    }
+    Ok(())
+}
+
+fn pack_events(api: &Api<'_>, replay: &Object<'_>) -> PyResult<String> {
+    let events = replay.getattr("replay_data")?;
+    let native = if let Ok(sequence) = events.cast::<ReplayData>() {
+        let data = sequence.borrow();
+        if data.materialized.is_none() {
+            Some((
+                data.frames.clone(),
+                data.cache
+                    .iter()
+                    .map(|(i, event)| (*i, event.clone_ref(api.py)))
+                    .collect::<HashMap<_, _>>(),
+            ))
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+    let mut output = String::with_capacity(events.len().unwrap_or(0).saturating_mul(32));
+    if let Some((frames, cache)) = native {
+        for (index, frame) in frames.iter().enumerate() {
+            if let Some(event) = cache.get(&index) {
+                let unchanged = event
+                    .bind(api.py)
+                    .cast::<models::ReplayEvent>()?
+                    .borrow()
+                    .is_native();
+                if !unchanged {
+                    append_event(api, event.bind(api.py), &mut output)?;
+                    continue;
+                }
             }
-            if kind == EventKind::Catch {
-                append_display(&mut output, &api.int.call1((event.getattr("dashing")?,))?)?;
-            } else {
-                append_display(&mut output, &event.getattr("keys")?.getattr("value")?)?;
-            }
-            output.push(',');
+            formatting::frame(&mut output, *frame, api.legacy_flags);
+        }
+    } else {
+        for event in events.try_iter()? {
+            append_event(api, &event?, &mut output)?;
         }
     }
     let seed = replay.getattr("rng_seed")?;
@@ -487,6 +523,13 @@ fn pack_events(api: &Api<'_>, replay: &Object<'_>) -> PyResult<String> {
         output.push(',');
     }
     Ok(output)
+}
+
+#[pyfunction]
+pub fn _format_float(value: f64) -> String {
+    let mut output = String::new();
+    formatting::float(&mut output, value);
+    output
 }
 
 fn compression_option(py: Python<'_>, value: Option<&Object<'_>>, default: u32) -> PyResult<u32> {
@@ -510,6 +553,25 @@ pub fn pack<'py>(
     dict_size: Option<&Object<'py>>,
     mode: Option<&Object<'py>>,
 ) -> PyResult<Bound<'py, PyBytes>> {
+    if let Ok(native) = replay.cast::<replay::Replay>() {
+        let snapshot = native.borrow().native_snapshot(py)?;
+        if let Some(snapshot) = snapshot {
+            let dict_size = compression_option(py, dict_size, 1 << 21)?;
+            let mode = compression_option(py, mode, 1)?;
+            let legacy_flags = py.version_info().minor < 11;
+            let bytes = py
+                .detach(|| snapshot.encode(dict_size, mode, legacy_flags))
+                .map_err(|error| match error {
+                    storage::EncodeError::Compression(error) => {
+                        exception(py, "lzma", "LZMAError", error.to_string())
+                    }
+                    storage::EncodeError::TooLong => {
+                        exception(py, "struct", "error", "argument out of range")
+                    }
+                })?;
+            return Ok(PyBytes::new(py, &bytes));
+        }
+    }
     let api = Api::new(py)?;
     let mut output = Vec::new();
     write_field(

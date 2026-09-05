@@ -218,14 +218,15 @@ class LifeBarState:
     life: float
 
 
-def _restore_event(cls, state):
+def _restore_event(cls, state=None):
     event = cls.__new__(cls)
-    event.__dict__.update(state)
+    if state is not None:
+        event.__dict__.update(state)
     return event
 
 
 def _reduce_event(self, protocol):
-    return _restore_event, (type(self), self.__dict__)
+    return _restore_event, (type(self),), self.__dict__
 
 
 def _native_model(template):

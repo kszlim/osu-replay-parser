@@ -1,6 +1,7 @@
 //! The binary cursor and LZMA transport. This module has no Python dependency.
 
 use std::io::{self, Write};
+use zerocopy::{FromBytes, Immutable, KnownLayout, Unaligned};
 
 use liblzma::stream::{Action, LzmaOptions, Mode, Status, Stream};
 use liblzma::write::XzEncoder;
@@ -37,6 +38,20 @@ impl<'a> Reader<'a> {
         result.copy_from_slice(bytes);
         self.offset += N;
         Ok(result)
+    }
+
+    pub fn view<T: FromBytes + Immutable + KnownLayout + Unaligned>(
+        &mut self,
+    ) -> Result<&'a T, ReadError> {
+        let error = ReadError::Truncated {
+            size: std::mem::size_of::<T>(),
+            offset: self.offset,
+            length: self.data.len(),
+        };
+        let remaining = self.data.get(self.offset..).ok_or(error)?;
+        let (value, _) = T::ref_from_prefix(remaining).map_err(|_| error)?;
+        self.offset += std::mem::size_of::<T>();
+        Ok(value)
     }
 
     pub fn byte(&mut self) -> Result<u8, ReadError> {
@@ -125,7 +140,11 @@ pub fn ticks_to_microseconds(ticks: i64) -> i64 {
 }
 
 pub fn decompress(mut data: &[u8]) -> io::Result<Vec<u8>> {
-    let mut output = Vec::new();
+    // Most replay streams expand several-fold. Reserve a bounded initial
+    // buffer to avoid repeated reallocations; the checked loop still grows
+    // without truncating streams that exceed this estimate.
+    let capacity = data.len().saturating_mul(6).clamp(64 * 1024, 1024 * 1024);
+    let mut output = Vec::with_capacity(capacity);
     let mut completed_stream = false;
     loop {
         let mut stream = Stream::new_auto_decoder(u64::MAX, 0)?;

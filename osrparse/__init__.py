@@ -1,6 +1,6 @@
 from importlib import metadata
 
-from osrparse.replay import Replay, parse_replay_data
+from osrparse.replay import Replay, ReplayData, parse_replay_data
 from osrparse.utils import (
     GameMode,
     Key,
@@ -21,6 +21,7 @@ __all__ = [
     "GameMode",
     "Mod",
     "Replay",
+    "ReplayData",
     "ReplayEvent",
     "Key",
     "ReplayEventOsu",
