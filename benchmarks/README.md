@@ -8,10 +8,10 @@ baseline is the independently frozen codec and models from commit `17d2315`.
 
 | Mode | Python parse ms | Native parse ms | Parse speedup | Parse + one event | Parse + all event fields | Pack speedup |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| Standard | 16.435 | 2.615 | 6.29× | 5.96× | 2.10× | 1.69× |
-| Taiko | 11.336 | 1.058 | 10.72× | 10.76× | 2.04× | 1.68× |
-| Catch | 7.383 | 1.747 | 4.23× | 4.35× | 1.98× | 1.76× |
-| Mania | 10.863 | 1.025 | 10.60× | 10.72× | 2.10× | 1.70× |
+| Standard | 17.101 | 2.680 | 6.38× | 5.93× | 2.20× | 1.65× |
+| Taiko | 11.747 | 1.057 | 11.12× | 10.72× | 2.10× | 1.71× |
+| Catch | 7.334 | 1.764 | 4.16× | 4.23× | 2.00× | 1.77× |
+| Mania | 10.861 | 0.998 | 10.89× | 10.75× | 2.20× | 1.71× |
 
 [Raw samples and source hashes](results.json).
 
@@ -19,10 +19,10 @@ baseline is the independently frozen codec and models from commit `17d2315`.
 
 | Mode | Python parse ms | Native parse ms | Parse speedup | Parse + one event | Parse + all event fields | Pack speedup |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| Standard | 26.791 | 2.665 | 10.05× | 10.12× | 2.93× | 1.95× |
-| Taiko | 21.383 | 1.063 | 20.12× | 20.25× | 2.77× | 2.10× |
-| Catch | 11.319 | 1.735 | 6.52× | 6.42× | 2.74× | 2.05× |
-| Mania | 20.624 | 1.068 | 19.31× | 19.04× | 2.86× | 2.24× |
+| Standard | 26.206 | 2.596 | 10.10× | 10.22× | 2.99× | 1.89× |
+| Taiko | 22.285 | 1.037 | 21.48× | 20.15× | 2.95× | 2.09× |
+| Catch | 10.998 | 1.718 | 6.40× | 6.60× | 2.85× | 2.07× |
+| Mania | 19.692 | 1.012 | 19.45× | 19.45× | 3.00× | 2.16× |
 
 [Raw samples and source hashes](results-python310.json).
 
@@ -58,10 +58,7 @@ hardware-sensitive thresholds while retaining the measurements.
 from Rust-owned storage and lazy Python exposure. Compressed ASCII events still
 require decompression and numeric conversion.
 
-## Historical measurements
-
-- [Eager native-event port](native-events-results.json), commit `4e2da52`.
-- [Earlier codec-only port](previous-port-results.json), commit `62236fa`.
-- [Historical rust3 comparison](rust3-comparison.json), before this lazy-storage change.
+Earlier implementation reports remain in Git history at `62236fa`, `4e2da52`,
+and `e686efb`. The frozen Python oracle is isolated under `tests/reference/`.
 
 The original `tests/test_benchmark.py` remains unchanged and runs with the suite.

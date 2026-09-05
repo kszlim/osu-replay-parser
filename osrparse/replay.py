@@ -7,7 +7,8 @@ from os import PathLike
 from typing import BinaryIO
 
 from osrparse import _native
-from osrparse.utils import GameMode, LifeBarState, Mod, ReplayEvent, _native_model
+from osrparse._model import bind_model
+from osrparse.utils import GameMode, LifeBarState, Mod, ReplayEvent
 from osrparse.utils import Key as Key
 from osrparse.utils import KeyMania as KeyMania
 from osrparse.utils import KeyTaiko as KeyTaiko
@@ -24,17 +25,10 @@ class _Unpacker:
         self.replay_data = replay_data
         self.offset = 0
 
-    def unpack(self):
-        return _native.unpack(bytes(self.replay_data), Replay)
-
     def unpack_timestamp(self):
         timestamp = _native.unpack_timestamp(bytes(self.replay_data[self.offset :]))
         self.offset += 8
         return timestamp
-
-    @staticmethod
-    def parse_replay_data(replay_data_str, mode):
-        return _native.parse_events(replay_data_str, mode)
 
 
 @dataclass
@@ -50,9 +44,9 @@ class Replay:
         The game mode this replay was played on.
     game_version: int
         The game version this replay was played on.
-    beatmap_hash: str
+    beatmap_hash: str | None
         The hash of the beatmap this replay was played on.
-    username: str
+    username: str | None
         The user that played this replay.
     replay_hash:
         The hash of this replay.
@@ -72,7 +66,7 @@ class Replay:
         The score of this replay.
     max_combo: int
         The maximum combo attained in this replay.
-    perfect: bool
+    perfect: int
         Whether this replay was perfect or not.
     mods: Mod
         The mods this replay was played with.
@@ -90,9 +84,9 @@ class Replay:
 
     mode: GameMode
     game_version: int
-    beatmap_hash: str
-    username: str
-    replay_hash: str
+    beatmap_hash: str | None
+    username: str | None
+    replay_hash: str | None
     count_300: int
     count_100: int
     count_50: int
@@ -101,7 +95,7 @@ class Replay:
     count_miss: int
     score: int
     max_combo: int
-    perfect: bool
+    perfect: int
     mods: Mod
     life_bar_graph: list[LifeBarState] | None
     timestamp: datetime
@@ -161,9 +155,7 @@ class Replay:
         Replay
             The parsed replay object.
         """
-        return _native.unpack(
-            bytes(data) if isinstance(data, bytearray) else data, Replay
-        )
+        return _native.unpack(bytes(data) if isinstance(data, bytearray) else data)
 
     def write_path(
         self,
@@ -263,46 +255,16 @@ def parse_replay_data(
     )
 
 
-# Class-level dataclass metadata stays available without touching replay data.
-# Instance introspection explicitly materializes ordinary Python containers so
-# standard dataclasses.asdict/replace and vars continue to work without patches
-# to the standard library.
-
-_ReplayTemplate = Replay
-Replay = _native_model(_ReplayTemplate)
-for _method in (
-    "from_path",
-    "from_file",
-    "from_string",
-    "write_path",
-    "write_file",
-    "pack",
-):
-    setattr(Replay, _method, _ReplayTemplate.__dict__[_method])
-
-
-def _replay_getattribute(self, name):
-    if name == "__dataclass_fields__":
-        self._materialize()
-    return object.__getattribute__(self, name)
-
-
-Replay.__getattribute__ = _replay_getattribute
+Replay = bind_model(
+    Replay,
+    methods=(
+        "from_path",
+        "from_file",
+        "from_string",
+        "write_path",
+        "write_file",
+        "pack",
+    ),
+)
 ReplayData = _native.ReplayData
 MutableSequence.register(ReplayData)
-
-
-def _replay_subclass(cls, **kwargs):
-    super(Replay, cls).__init_subclass__(**kwargs)
-    previous = cls.__getattribute__
-    descriptor = Replay.__dict__["__dict__"]
-
-    def getattribute(self, name):
-        if name == "__dict__":
-            return descriptor.__get__(self, type(self))
-        return previous(self, name)
-
-    cls.__getattribute__ = getattribute
-
-
-Replay.__init_subclass__ = classmethod(_replay_subclass)

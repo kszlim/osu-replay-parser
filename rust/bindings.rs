@@ -1,18 +1,17 @@
-//! Python protocol adaptation for the native codec.
-//!
-//! Public models stay ordinary Python dataclasses and enums. The boundary uses
-//! Python conversions for uncommon numeric spellings and unbounded integers,
-//! preserving their semantics without penalizing ordinary replay frames.
+//! Python conversions and I/O at the codec boundary.
+//! Binary and event grammar live only in parse.rs; exceptional numbers use
+//! Python builtins through the same decoder's Numbers interface.
 
 use std::collections::HashMap;
 use std::ffi::CStr;
 
-use pyo3::exceptions::{PyIndexError, PyValueError};
+use pyo3::exceptions::{PyIndexError, PyOverflowError, PyTypeError, PyValueError};
 use pyo3::prelude::*;
-use pyo3::types::{PyAny, PyBytes, PyDict, PyFloat, PyInt, PyList, PyString, PyTuple, PyType};
+use pyo3::types::{PyAny, PyBytes, PyDict, PyFloat, PyInt, PyList, PyString, PyType};
 
 use crate::codec::{self, ReadError, Reader};
-use crate::{events, formatting, models, replay, sequence::ReplayData, storage};
+use crate::parse::{NativeNumbers, Numbers};
+use crate::{events, formatting, models, parse, replay, sequence::ReplayData, storage};
 use std::sync::Arc;
 
 type Object<'py> = Bound<'py, PyAny>;
@@ -56,10 +55,26 @@ fn decode<'py>(py: Python<'py>, data: &[u8], encoding: &CStr) -> PyResult<Bound<
     PyString::from_encoded_object(&PyBytes::new(py, data), Some(encoding), Some(c"strict"))
 }
 
-fn string<'py>(py: Python<'py>, reader: &mut Reader<'_>) -> PyResult<Object<'py>> {
-    match reader.string().map_err(|e| read_error(py, e))? {
-        Some(bytes) => Ok(decode(py, bytes, c"utf-8")?.into_any()),
-        None => Ok(py.None().into_bound(py)),
+fn parse_error<N>(
+    py: Python<'_>,
+    error: parse::Error<N>,
+    number: impl FnOnce(N) -> PyErr,
+) -> PyErr {
+    match error {
+        parse::Error::Read(error) => read_error(py, error),
+        parse::Error::Utf8(bytes) => {
+            decode(py, &bytes, c"utf-8").expect_err("decoder rejected UTF-8")
+        }
+        parse::Error::Ascii(bytes) => {
+            decode(py, &bytes, c"ascii").expect_err("decoder rejected ASCII")
+        }
+        parse::Error::Mode(value) => {
+            PyValueError::new_err(format!("{value} is not a valid GameMode"))
+        }
+        parse::Error::Timestamp => PyOverflowError::new_err("date value out of range"),
+        parse::Error::Index => PyIndexError::new_err("list index out of range"),
+        parse::Error::Compression(error) => exception(py, "lzma", "LZMAError", error.to_string()),
+        parse::Error::Number(error) => number(error),
     }
 }
 
@@ -69,6 +84,24 @@ struct Api<'py> {
     int: Object<'py>,
     float: Object<'py>,
     utils: Bound<'py, PyModule>,
+}
+
+impl<'py> Numbers for Api<'py> {
+    type Int = Bound<'py, PyInt>;
+    type Float = Bound<'py, PyFloat>;
+    type Error = PyErr;
+    fn integer(&self, text: &str) -> PyResult<Self::Int> {
+        Ok(self.int.call1((text,))?.cast_into()?)
+    }
+    fn float(&self, text: &str) -> PyResult<Self::Float> {
+        Ok(self.float.call1((text,))?.cast_into()?)
+    }
+    fn int_eq(&self, value: &Self::Int, expected: i64) -> bool {
+        value.extract::<i64>().ok() == Some(expected)
+    }
+    fn float_eq(&self, value: &Self::Float, expected: f64) -> bool {
+        value.value() == expected
+    }
 }
 
 impl<'py> Api<'py> {
@@ -83,152 +116,72 @@ impl<'py> Api<'py> {
         })
     }
 
-    fn integer(&self, text: &str) -> PyResult<Object<'py>> {
-        if let Ok(value) = text.trim().parse::<i64>() {
-            Ok(PyInt::new(self.py, value).into_any())
-        } else {
-            self.int.call1((text,))
-        }
-    }
-
-    fn float(&self, text: &str) -> PyResult<Object<'py>> {
-        if let Ok(value) = text.trim().parse::<f64>() {
-            Ok(PyFloat::new(self.py, value).into_any())
-        } else {
-            self.float.call1((text,))
-        }
-    }
-
-    fn lifebar(&self, value: &Object<'py>) -> PyResult<Object<'py>> {
-        if !value.is_truthy()? {
-            return Ok(self.py.None().into_bound(self.py));
-        }
-        let text = value.cast::<PyString>()?.to_str()?;
-        let end = text
-            .char_indices()
-            .next_back()
-            .map_or(0, |(index, _)| index);
-        let state_type = self.utils.getattr("LifeBarState")?;
-        let result = PyList::empty(self.py);
-        for entry in text[..end].split(',') {
-            let mut parts = entry.split('|');
-            let time = self.integer(parts.next().unwrap_or_default())?;
-            let life = self.float(
-                parts
-                    .next()
-                    .ok_or_else(|| PyIndexError::new_err("list index out of range"))?,
-            )?;
-            result.append(state_type.call1((time, life))?)?;
-        }
-        Ok(result.into_any())
-    }
-
-    fn events(&self, text: &str, mode: &Object<'py>) -> PyResult<(Object<'py>, Object<'py>)> {
+    fn mode(&self, value: &Object<'py>) -> PyResult<EventKind> {
         let modes = self.utils.getattr("GameMode")?;
-        let selected = [
-            (events::Mode::Osu, "STD"),
-            (events::Mode::Taiko, "TAIKO"),
-            (events::Mode::Catch, "CTB"),
-            (events::Mode::Mania, "MANIA"),
-        ]
-        .into_iter()
-        .find(|(_, name)| modes.getattr(*name).is_ok_and(|member| mode.is(member)));
-        if let Some((kind, _)) = selected {
-            if let Ok((frames, seed)) = self.py.detach(|| events::parse(text, kind)) {
-                let data = Py::new(self.py, ReplayData::from_frames(Arc::new(frames)))?;
-                return Ok((
-                    data.into_bound(self.py).into_any(),
-                    seed.into_pyobject(self.py)?.into_any(),
-                ));
+        for (mode, name) in [
+            (EventKind::Osu, "STD"),
+            (EventKind::Taiko, "TAIKO"),
+            (EventKind::Catch, "CTB"),
+            (EventKind::Mania, "MANIA"),
+        ] {
+            if value.is(modes.getattr(name)?) {
+                return Ok(mode);
             }
         }
-        let (data, seed) = self.events_compat(text, mode)?;
-        Ok((data.into_any(), seed))
+        Err(PyTypeError::new_err("mode must be a GameMode member"))
     }
 
-    fn events_compat(
+    fn materialize(
+        &self,
+        frames: impl IntoIterator<Item = events::Frame<Bound<'py, PyInt>, Bound<'py, PyFloat>>>,
+    ) -> PyResult<Py<ReplayData>> {
+        let list = PyList::empty(self.py);
+        for frame in frames {
+            use events::Frame;
+            let object = match frame {
+                Frame::Base { time } => self.utils.getattr("ReplayEvent")?.call1((time,))?,
+                Frame::Osu { time, x, y, keys } => self
+                    .utils
+                    .getattr("ReplayEventOsu")?
+                    .call1((time, x, y, self.utils.getattr("Key")?.call1((keys,))?))?,
+                Frame::Taiko { time, x, keys } => self
+                    .utils
+                    .getattr("ReplayEventTaiko")?
+                    .call1((time, x, self.utils.getattr("KeyTaiko")?.call1((keys,))?))?,
+                Frame::Catch { time, x, dashing } => self
+                    .utils
+                    .getattr("ReplayEventCatch")?
+                    .call1((time, x, dashing))?,
+                Frame::Mania { time, keys } => self
+                    .utils
+                    .getattr("ReplayEventMania")?
+                    .call1((time, self.utils.getattr("KeyMania")?.call1((keys,))?))?,
+            };
+            list.append(object)?;
+        }
+        Py::new(self.py, ReplayData::from_list(list.unbind()))
+    }
+
+    fn events(
         &self,
         text: &str,
         mode: &Object<'py>,
-    ) -> PyResult<(Bound<'py, PyList>, Object<'py>)> {
-        let modes = self.utils.getattr("GameMode")?;
-        let kinds = [
-            (EventKind::Osu, "STD", "ReplayEventOsu", "Key"),
-            (EventKind::Taiko, "TAIKO", "ReplayEventTaiko", "KeyTaiko"),
-            (EventKind::Catch, "CTB", "ReplayEventCatch", "Key"),
-            (EventKind::Mania, "MANIA", "ReplayEventMania", "KeyMania"),
-        ];
-        let mut selected = None;
-        for (kind, name, event, keys) in kinds {
-            if mode.is(modes.getattr(name)?) {
-                selected = Some((kind, self.utils.getattr(event)?, self.utils.getattr(keys)?));
-                break;
+    ) -> PyResult<(Py<ReplayData>, Option<Py<PyInt>>)> {
+        let mode = self.mode(mode)?;
+        match self.py.detach(|| parse::events(text, mode, &NativeNumbers)) {
+            Ok((frames, seed)) => Ok((
+                Py::new(self.py, ReplayData::from_frames(Arc::new(frames)))?,
+                seed.map(|seed| PyInt::new(self.py, seed).unbind()),
+            )),
+            Err(parse::Error::Number(_)) => {
+                let (frames, seed) = parse::events(text, mode, self)
+                    .map_err(|error| parse_error(self.py, error, |error| error))?;
+                Ok((self.materialize(frames)?, seed.map(Bound::unbind)))
             }
+            Err(error) => Err(parse_error(self.py, error, |_| {
+                PyValueError::new_err("invalid number")
+            })),
         }
-        let events = PyList::empty(self.py);
-        let mut seed = self.py.None().into_bound(self.py);
-        let mut flags = HashMap::<i64, Object<'py>>::new();
-        let mut entries = text.trim_end_matches(',').split(',').enumerate().peekable();
-        while let Some((index, entry)) = entries.next() {
-            let mut parts = entry.split('|');
-            let time = self.integer(parts.next().unwrap_or_default())?;
-            let x = parts
-                .next()
-                .ok_or_else(|| PyIndexError::new_err("list index out of range"))?;
-            let y = parts
-                .next()
-                .ok_or_else(|| PyIndexError::new_err("list index out of range"))?;
-            let keys_text = parts
-                .next()
-                .ok_or_else(|| PyIndexError::new_err("list index out of range"))?;
-            let keys = self.integer(keys_text)?;
-            if time.eq(-12345)? && entries.peek().is_none() {
-                seed = keys;
-                continue;
-            }
-            if index < 2 && self.float(x)?.eq(256)? && self.float(y)?.eq(-500)? {
-                continue;
-            }
-            let event = match &selected {
-                Some((kind, event_type, key_type)) => match kind {
-                    EventKind::Osu => event_type.call1((
-                        time,
-                        self.float(x)?,
-                        self.float(y)?,
-                        flag(&mut flags, key_type, keys)?,
-                    ))?,
-                    EventKind::Taiko => event_type.call1((
-                        time,
-                        self.integer(x)?,
-                        flag(&mut flags, key_type, keys)?,
-                    ))?,
-                    EventKind::Catch => event_type.call1((time, self.float(x)?, keys.eq(1)?))?,
-                    EventKind::Mania => {
-                        event_type.call1((time, flag(&mut flags, key_type, self.integer(x)?)?))?
-                    }
-                },
-                None => PyList::new(self.py, entry.split('|'))?.into_any(),
-            };
-            events.append(event)?;
-        }
-        Ok((events, seed))
-    }
-}
-
-fn flag<'py>(
-    cache: &mut HashMap<i64, Object<'py>>,
-    class: &Object<'py>,
-    value: Object<'py>,
-) -> PyResult<Object<'py>> {
-    if let Ok(key) = value.extract::<i64>() {
-        if let Some(cached) = cache.get(&key) {
-            return Ok(cached.clone());
-        }
-        let flag = class.call1((value,))?;
-        cache.insert(key, flag.clone());
-        Ok(flag)
-    } else {
-        class.call1((value,))
     }
 }
 
@@ -247,79 +200,63 @@ pub(crate) fn timestamp<'py>(py: Python<'py>, ticks: i64) -> PyResult<Object<'py
 }
 
 #[pyfunction]
+#[pyo3(signature = (data) -> "datetime")]
 pub fn unpack_timestamp<'py>(py: Python<'py>, data: &[u8]) -> PyResult<Object<'py>> {
     let ticks = Reader::new(data).long().map_err(|e| read_error(py, e))?;
     timestamp(py, ticks)
 }
 
 #[pyfunction]
-pub fn unpack<'py>(
-    py: Python<'py>,
-    data: &[u8],
-    replay_type: &Object<'py>,
-) -> PyResult<Object<'py>> {
-    if let Some(storage) = py.detach(|| storage::parse(data)) {
-        return Ok(Py::new(py, replay::Replay::from_storage(storage))?
-            .into_bound(py)
-            .into_any());
+pub fn unpack(py: Python<'_>, data: &[u8]) -> PyResult<Py<replay::Replay>> {
+    match py.detach(|| parse::replay(data, &NativeNumbers)) {
+        Ok(storage) => Py::new(py, replay::Replay::from_storage(storage)),
+        Err(parse::Error::Number(_)) => {
+            let api = Api::new(py)?;
+            let decoded =
+                parse::replay(data, &api).map_err(|error| parse_error(py, error, |error| error))?;
+            let values = PyDict::new(py);
+            let life = decoded
+                .lifebar
+                .map(|points| -> PyResult<_> {
+                    let class = api.utils.getattr("LifeBarState")?;
+                    PyList::new(
+                        py,
+                        points
+                            .into_iter()
+                            .map(|(time, life)| class.call1((time, life)))
+                            .collect::<PyResult<Vec<_>>>()?,
+                    )
+                })
+                .transpose()?;
+            values.set_item("life_bar_graph", life)?;
+            values.set_item("rng_seed", decoded.seed)?;
+            values.set_item(
+                "replay_data",
+                api.materialize(decoded.frames.iter().cloned())?,
+            )?;
+            let storage = storage::ReplayStorage {
+                header: decoded.header,
+                lifebar: None,
+                frames: Arc::new(Vec::new()),
+                seed: None,
+            };
+            Py::new(py, replay::Replay::with_values(storage, values.unbind()))
+        }
+        Err(error) => Err(parse_error(py, error, |_| {
+            PyValueError::new_err("invalid number")
+        })),
     }
-    let api = Api::new(py)?;
-    let mut reader = Reader::new(data);
-    let mode = reader.byte().map_err(|e| read_error(py, e))?;
-    let mode = api.utils.getattr("GameMode")?.call1((mode,))?;
-    let mut fields = Vec::with_capacity(21);
-    fields.push(mode.clone());
-    fields.push(PyInt::new(py, reader.int().map_err(|e| read_error(py, e))?).into_any());
-    for _ in 0..3 {
-        fields.push(string(py, &mut reader)?);
-    }
-    for _ in 0..6 {
-        fields.push(PyInt::new(py, reader.short().map_err(|e| read_error(py, e))?).into_any());
-    }
-    fields.push(PyInt::new(py, reader.int().map_err(|e| read_error(py, e))?).into_any());
-    fields.push(PyInt::new(py, reader.short().map_err(|e| read_error(py, e))?).into_any());
-    fields.push(PyInt::new(py, reader.byte().map_err(|e| read_error(py, e))?).into_any());
-    fields.push(
-        api.utils
-            .getattr("Mod")?
-            .call1((reader.int().map_err(|e| read_error(py, e))?,))?,
-    );
-    fields.push(api.lifebar(&string(py, &mut reader)?)?);
-    fields.push(timestamp(
-        py,
-        reader.long().map_err(|e| read_error(py, e))?,
-    )?);
-    let length = reader.int().map_err(|e| read_error(py, e))? as usize;
-    let compressed = reader.slice(length);
-    let decoded = py
-        .detach(|| codec::decompress(compressed))
-        .map_err(|e| exception(py, "lzma", "LZMAError", e.to_string()))?;
-    let decoded = decode(py, &decoded, c"ascii")?;
-    let (events, seed) = api.events(decoded.to_str()?, &mode)?;
-    fields.push(events.into_any());
-    fields.push(PyInt::new(py, reader.replay_id().map_err(|e| read_error(py, e))?).into_any());
-    fields.push(seed);
-    replay_type.call1(PyTuple::new(py, fields)?)
 }
 
 #[pyfunction]
-pub fn parse_events<'py>(
-    py: Python<'py>,
-    text: &str,
-    mode: &Object<'py>,
-) -> PyResult<(Object<'py>, Object<'py>)> {
-    Api::new(py)?.events(text, mode)
-}
-
-#[pyfunction]
-#[pyo3(signature = (data, *, decoded=false, decompressed=false, mode))]
+#[pyo3(signature = (data: "str | bytes", *, decoded=false, decompressed=false, mode: "GameMode"))]
 pub fn parse_replay_data<'py>(
     py: Python<'py>,
     data: &Object<'py>,
     decoded: bool,
     decompressed: bool,
     mode: &Object<'py>,
-) -> PyResult<Object<'py>> {
+) -> PyResult<Py<ReplayData>> {
     let mut data = data.clone();
     if !decoded && !decompressed {
         data = py.import("base64")?.getattr("b64decode")?.call1((data,))?;
@@ -357,28 +294,6 @@ fn numeric_field(py: Python<'_>, value: &Object<'_>, signed: bool, bits: u8) -> 
         return Err(exception(py, "struct", "error", "argument out of range"));
     }
     Ok(number)
-}
-
-fn write_field(
-    py: Python<'_>,
-    output: &mut Vec<u8>,
-    value: &Object<'_>,
-    signed: bool,
-    bits: u8,
-) -> PyResult<()> {
-    let number = numeric_field(py, value, signed, bits)?;
-    output.extend_from_slice(&number.to_le_bytes()[..usize::from(bits / 8)]);
-    Ok(())
-}
-
-fn write_python_string(output: &mut Vec<u8>, value: &Object<'_>) -> PyResult<()> {
-    if value.is_truthy()? {
-        let encoded = value.call_method1("encode", ("utf-8",))?;
-        codec::write_string(output, encoded.cast::<PyBytes>()?.as_bytes());
-    } else {
-        codec::write_string(output, b"");
-    }
-    Ok(())
 }
 
 fn append_display(output: &mut String, value: &Object<'_>) -> PyResult<()> {
@@ -545,8 +460,17 @@ fn compression_option(py: Python<'_>, value: Option<&Object<'_>>, default: u32) 
     }
 }
 
+fn encode_error(py: Python<'_>, error: storage::EncodeError) -> PyErr {
+    match error {
+        storage::EncodeError::Compression(error) => {
+            exception(py, "lzma", "LZMAError", error.to_string())
+        }
+        storage::EncodeError::TooLong => exception(py, "struct", "error", "argument out of range"),
+    }
+}
+
 #[pyfunction]
-#[pyo3(signature = (replay, *, dict_size=None, mode=None))]
+#[pyo3(signature = (replay: "Replay", *, dict_size: "int | None"=None, mode: "int | None"=None))]
 pub fn pack<'py>(
     py: Python<'py>,
     replay: &Object<'py>,
@@ -561,66 +485,61 @@ pub fn pack<'py>(
             let legacy_flags = py.version_info().minor < 11;
             let bytes = py
                 .detach(|| snapshot.encode(dict_size, mode, legacy_flags))
-                .map_err(|error| match error {
-                    storage::EncodeError::Compression(error) => {
-                        exception(py, "lzma", "LZMAError", error.to_string())
-                    }
-                    storage::EncodeError::TooLong => {
-                        exception(py, "struct", "error", "argument out of range")
-                    }
-                })?;
+                .map_err(|error| encode_error(py, error))?;
             return Ok(PyBytes::new(py, &bytes));
         }
     }
     let api = Api::new(py)?;
-    let mut output = Vec::new();
-    write_field(
-        py,
-        &mut output,
-        &replay.getattr("mode")?.getattr("value")?,
-        false,
-        8,
-    )?;
-    write_field(py, &mut output, &replay.getattr("game_version")?, false, 32)?;
-    for name in ["beatmap_hash", "username", "replay_hash"] {
-        write_python_string(&mut output, &replay.getattr(name)?)?;
+    let mode_value = numeric_field(py, &replay.getattr("mode")?.getattr("value")?, false, 8)? as u8;
+    let game_version = numeric_field(py, &replay.getattr("game_version")?, false, 32)? as u32;
+    let mut strings = [None, None, None];
+    for (slot, name) in strings
+        .iter_mut()
+        .zip(["beatmap_hash", "username", "replay_hash"])
+    {
+        let value = replay.getattr(name)?;
+        if value.is_truthy()? {
+            *slot = Some(value.extract::<String>()?);
+        }
     }
-    for name in [
+    let mut hits = [0; 6];
+    for (slot, name) in hits.iter_mut().zip([
         "count_300",
         "count_100",
         "count_50",
         "count_geki",
         "count_katu",
         "count_miss",
-    ] {
-        write_field(py, &mut output, &replay.getattr(name)?, false, 16)?;
+    ]) {
+        *slot = numeric_field(py, &replay.getattr(name)?, false, 16)? as u16;
     }
-    write_field(py, &mut output, &replay.getattr("score")?, false, 32)?;
-    write_field(py, &mut output, &replay.getattr("max_combo")?, false, 16)?;
-    write_field(py, &mut output, &replay.getattr("perfect")?, false, 8)?;
-    write_field(
-        py,
-        &mut output,
-        &replay.getattr("mods")?.getattr("value")?,
-        false,
-        32,
-    )?;
-    codec::write_string(&mut output, pack_lifebar(&api, replay)?.as_bytes());
-    output.extend_from_slice(&pack_timestamp(py, replay)?.to_le_bytes());
+    let score = numeric_field(py, &replay.getattr("score")?, false, 32)? as u32;
+    let max_combo = numeric_field(py, &replay.getattr("max_combo")?, false, 16)? as u16;
+    let perfect = numeric_field(py, &replay.getattr("perfect")?, false, 8)? as u8;
+    let mods = numeric_field(py, &replay.getattr("mods")?.getattr("value")?, false, 32)? as u32;
+    let life = pack_lifebar(&api, replay)?;
+    let ticks = pack_timestamp(py, replay)?;
     let events = pack_events(&api, replay)?;
-    // Match the original ASCII encoder's exception for invalid user edits.
     if !events.is_ascii() {
         PyString::new(py, &events).call_method1("encode", ("ascii",))?;
     }
     let dict_size = compression_option(py, dict_size, 1 << 21)?;
     let mode = compression_option(py, mode, 1)?;
-    let compressed = py
-        .detach(|| codec::compress(events.as_bytes(), dict_size, mode))
-        .map_err(|e| exception(py, "lzma", "LZMAError", e.to_string()))?;
-    let length = u32::try_from(compressed.len())
-        .map_err(|_| exception(py, "struct", "error", "argument out of range"))?;
-    output.extend_from_slice(&length.to_le_bytes());
-    output.extend_from_slice(&compressed);
-    write_field(py, &mut output, &replay.getattr("replay_id")?, true, 64)?;
-    Ok(PyBytes::new(py, &output))
+    let replay_id = numeric_field(py, &replay.getattr("replay_id")?, true, 64)? as i64;
+    let header = storage::Header {
+        mode: mode_value,
+        game_version,
+        strings,
+        hits,
+        score,
+        max_combo,
+        perfect,
+        mods,
+        ticks,
+        replay_id,
+    };
+    let bytes = py
+        .detach(|| header.encode(&life, &events, dict_size, mode))
+        .map_err(|error| encode_error(py, error))?;
+    Ok(PyBytes::new(py, &bytes))
 }

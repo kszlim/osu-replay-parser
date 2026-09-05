@@ -3,7 +3,7 @@
 
 use crate::{events::Frame, models};
 use pyo3::class::basic::CompareOp;
-use pyo3::exceptions::{PyIndexError, PyStopIteration};
+use pyo3::exceptions::{PyIndexError, PyStopIteration, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyList, PySlice};
 use std::{collections::HashMap, sync::Arc};
@@ -24,6 +24,12 @@ impl ReplayData {
             materialized: None,
             keys: HashMap::new(),
         }
+    }
+
+    pub fn from_list(list: Py<PyList>) -> Self {
+        let mut data = Self::from_frames(Arc::new(Vec::new()));
+        data.materialized = Some(list);
+        data
     }
 
     pub fn length(&self, py: Python<'_>) -> usize {
@@ -93,42 +99,62 @@ fn list<'py>(slf: &Bound<'py, ReplayData>) -> PyResult<Bound<'py, PyList>> {
 #[pymethods]
 impl ReplayData {
     #[new]
-    #[pyo3(signature = (items=None))]
+    #[pyo3(signature = (items: "Iterable[ReplayEvent] | None"=None))]
     fn new(py: Python<'_>, items: Option<&Bound<'_, PyAny>>) -> PyResult<Self> {
         let values = match items {
             Some(items) => PyList::new(py, items.try_iter()?.collect::<PyResult<Vec<_>>>()?)?,
             None => PyList::empty(py),
         };
-        let mut result = Self::from_frames(Arc::new(Vec::new()));
-        result.materialized = Some(values.unbind());
-        Ok(result)
+        Ok(Self::from_list(values.unbind()))
     }
 
     fn __len__(&self, py: Python<'_>) -> usize {
         self.length(py)
     }
 
-    fn __getitem__(&mut self, py: Python<'_>, index: &Bound<'_, PyAny>) -> PyResult<Py<PyAny>> {
+    fn __getitem__(slf: &Bound<'_, Self>, index: &Bound<'_, PyAny>) -> PyResult<Py<PyAny>> {
+        let py = slf.py();
+        let indexer = py.import("operator")?.getattr("index")?;
         if let Ok(slice) = index.cast::<PySlice>() {
-            let indices = slice.indices(self.length(py) as isize)?;
+            // Index conversion can call Python and mutate this sequence. Do it
+            // before borrowing storage or capturing the current length.
+            let convert = |name| -> PyResult<Bound<'_, PyAny>> {
+                let value = slice.getattr(name)?;
+                if value.is_none() {
+                    Ok(value)
+                } else {
+                    indexer.call1((value,))
+                }
+            };
+            let step = convert("step")?;
+            if step.eq(0)? {
+                return Err(PyValueError::new_err("slice step cannot be zero"));
+            }
+            let normalized =
+                py.get_type::<PySlice>()
+                    .call1((convert("start")?, convert("stop")?, step))?;
+            let indices = normalized
+                .cast::<PySlice>()?
+                .indices(slf.borrow().length(py) as isize)?;
             let mut values = Vec::with_capacity(indices.slicelength);
             for n in 0..indices.slicelength {
-                values.push(self.item(py, (indices.start + n as isize * indices.step) as usize)?);
+                values.push(
+                    slf.borrow_mut()
+                        .item(py, (indices.start + n as isize * indices.step) as usize)?,
+                );
             }
             return Ok(PyList::new(py, values)?.into_any().unbind());
         }
-        let index: isize = py
-            .import("operator")?
-            .getattr("index")?
+        let index: isize = indexer
             .call1((index,))?
             .extract()
             .map_err(|_| PyIndexError::new_err("cannot fit integer into an index-sized integer"))?;
-        let length = self.length(py) as isize;
+        let length = slf.borrow().length(py) as isize;
         let index = if index < 0 { length + index } else { index };
         if !(0..length).contains(&index) {
             return Err(PyIndexError::new_err("list index out of range"));
         }
-        self.item(py, index as usize)
+        slf.borrow_mut().item(py, index as usize)
     }
 
     fn __iter__(slf: Py<Self>, py: Python<'_>) -> PyResult<Py<ReplayDataIterator>> {
@@ -153,42 +179,53 @@ impl ReplayData {
         list(slf)?.call_method1("__delitem__", (index,))?;
         Ok(())
     }
+    #[pyo3(signature = (value: "ReplayEvent"))]
     fn append(slf: &Bound<'_, Self>, value: &Bound<'_, PyAny>) -> PyResult<()> {
         list(slf)?.append(value)
     }
+    #[pyo3(signature = (values: "Iterable[ReplayEvent]"))]
     fn extend(slf: &Bound<'_, Self>, values: &Bound<'_, PyAny>) -> PyResult<()> {
         list(slf)?.call_method1("extend", (values,))?;
         Ok(())
     }
+    #[pyo3(signature = (index, value: "ReplayEvent"))]
     fn insert(slf: &Bound<'_, Self>, index: isize, value: &Bound<'_, PyAny>) -> PyResult<()> {
         list(slf)?.call_method1("insert", (index, value))?;
         Ok(())
     }
-    #[pyo3(signature = (index=-1))]
+    #[pyo3(signature = (index=-1) -> "ReplayEvent")]
     fn pop(slf: &Bound<'_, Self>, index: isize) -> PyResult<Py<PyAny>> {
         Ok(list(slf)?.call_method1("pop", (index,))?.unbind())
     }
+    #[pyo3(signature = (value: "ReplayEvent"))]
     fn remove(slf: &Bound<'_, Self>, value: &Bound<'_, PyAny>) -> PyResult<()> {
         list(slf)?.call_method1("remove", (value,))?;
         Ok(())
     }
     fn clear(slf: &Bound<'_, Self>) -> PyResult<()> {
-        let mut data = slf.borrow_mut();
-        if let Some(items) = &data.materialized {
-            items.bind(slf.py()).call_method0("clear")?;
-        } else {
-            data.materialized = Some(PyList::empty(slf.py()).unbind());
-        }
-        data.frames = Arc::new(Vec::new());
-        data.cache.clear();
-        data.keys.clear();
+        let (items, cached, keys) = {
+            let mut data = slf.borrow_mut();
+            let items = data
+                .materialized
+                .get_or_insert_with(|| PyList::empty(slf.py()).unbind())
+                .clone_ref(slf.py());
+            data.frames = Arc::new(Vec::new());
+            (
+                items,
+                std::mem::take(&mut data.cache),
+                std::mem::take(&mut data.keys),
+            )
+        };
+        // Dropping objects may run Python finalizers that re-enter this object.
+        items.bind(slf.py()).call_method0("clear")?;
+        drop((cached, keys));
         Ok(())
     }
     fn reverse(slf: &Bound<'_, Self>) -> PyResult<()> {
         list(slf)?.call_method0("reverse")?;
         Ok(())
     }
-    #[pyo3(signature = (*, key=None, reverse=false))]
+    #[pyo3(signature = (*, key: "Callable[[ReplayEvent], Any] | None"=None, reverse=false))]
     fn sort(slf: &Bound<'_, Self>, key: Option<&Bound<'_, PyAny>>, reverse: bool) -> PyResult<()> {
         let kwargs = pyo3::types::PyDict::new(slf.py());
         kwargs.set_item("key", key)?;
@@ -196,10 +233,11 @@ impl ReplayData {
         list(slf)?.call_method("sort", (), Some(&kwargs))?;
         Ok(())
     }
+    #[pyo3(signature = (value: "ReplayEvent"))]
     fn count(slf: &Bound<'_, Self>, value: &Bound<'_, PyAny>) -> PyResult<usize> {
         list(slf)?.call_method1("count", (value,))?.extract()
     }
-    #[pyo3(signature = (value, start=0, stop=None))]
+    #[pyo3(signature = (value: "ReplayEvent", start=0, stop=None))]
     fn index(
         slf: &Bound<'_, Self>,
         value: &Bound<'_, PyAny>,
@@ -241,6 +279,7 @@ impl ReplayData {
     fn __repr__(slf: &Bound<'_, Self>) -> PyResult<String> {
         Ok(list(slf)?.repr()?.to_str()?.to_owned())
     }
+    #[pyo3(signature = () -> "list[ReplayEvent]")]
     fn copy(slf: &Bound<'_, Self>) -> PyResult<Py<PyList>> {
         Ok(list(slf)?
             .get_slice(0, slf.borrow().length(slf.py()))

@@ -24,8 +24,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from benchmarks.python_baseline import Replay as PythonReplay  # noqa: E402
 from osrparse import Replay, ReplayData, _native  # noqa: E402
+from tests.reference.baseline import Replay as PythonReplay  # noqa: E402
 
 
 def canonical(value):
@@ -140,9 +140,13 @@ def main():
                 *sorted((ROOT / "rust").glob("*.rs")),
                 ROOT / "Cargo.lock",
                 ROOT / "Cargo.toml",
+                ROOT / "osrparse/_model.py",
                 ROOT / "osrparse/replay.py",
                 ROOT / "osrparse/utils.py",
-                ROOT / "benchmarks/python_baseline_utils.py",
+                ROOT / "tests/reference/baseline.py",
+                ROOT / "tests/reference/python_replay.py",
+                ROOT / "tests/reference/python_utils.py",
+                Path(__file__).resolve(),
             ]
         },
     }

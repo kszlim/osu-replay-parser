@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from enum import Enum, IntFlag
 
+from osrparse._model import bind_model, restore
+
 
 class GameMode(Enum):
     """
@@ -218,62 +220,11 @@ class LifeBarState:
     life: float
 
 
-def _restore_event(cls, state=None):
-    event = cls.__new__(cls)
-    if state is not None:
-        event.__dict__.update(state)
-    return event
+ReplayEvent = bind_model(ReplayEvent)
+ReplayEventOsu = bind_model(ReplayEventOsu)
+ReplayEventTaiko = bind_model(ReplayEventTaiko)
+ReplayEventCatch = bind_model(ReplayEventCatch)
+ReplayEventMania = bind_model(ReplayEventMania)
 
-
-def _reduce_event(self, protocol):
-    return _restore_event, (type(self),), self.__dict__
-
-
-def _native_model(template):
-    from inspect import signature
-
-    from osrparse import _native
-
-    native = getattr(_native, template.__name__)
-    # Retain dataclass construction and introspection at the API boundary.
-    # Native parsing allocates the Rust objects directly, skipping __init__.
-    for name in (
-        "__init__",
-        "__repr__",
-        "__eq__",
-        "__hash__",
-        "__annotations__",
-        "__dataclass_fields__",
-        "__dataclass_params__",
-        "__match_args__",
-        "__doc__",
-    ):
-        setattr(native, name, getattr(template, name))
-    native.__signature__ = signature(template)
-    native.__reduce_ex__ = _reduce_event
-    return native
-
-
-ReplayEvent = _native_model(ReplayEvent)
-ReplayEventOsu = _native_model(ReplayEventOsu)
-ReplayEventTaiko = _native_model(ReplayEventTaiko)
-ReplayEventCatch = _native_model(ReplayEventCatch)
-ReplayEventMania = _native_model(ReplayEventMania)
-
-
-def _event_subclass(cls, **kwargs):
-    # Python subclasses otherwise receive a separate empty instance dictionary.
-    # Route dictionary introspection to the same live state used by native fields.
-    super(ReplayEvent, cls).__init_subclass__(**kwargs)
-    previous = cls.__getattribute__
-    descriptor = ReplayEvent.__dict__["__dict__"]
-
-    def getattribute(self, name):
-        if name == "__dict__":
-            return descriptor.__get__(self, type(self))
-        return previous(self, name)
-
-    cls.__getattribute__ = getattribute
-
-
-ReplayEvent.__init_subclass__ = classmethod(_event_subclass)
+# Existing pickles refer to this private name.
+_restore_event = restore

@@ -47,6 +47,8 @@ jobs:
       - run: cargo fmt --check
       - run: cargo test --locked
       - run: cargo clippy --locked --all-targets -- -D warnings
+      - run: uv run --locked python tools/generate_stubs.py --check
+      - run: uv run --locked mypy --strict tests/typing_api.py
       - run: uv run --locked ruff check
       - run: uv run --locked ruff format --check
       - run: uv run --locked --group docs sphinx-build -W --keep-going -b html docs build/html
@@ -55,10 +57,11 @@ jobs:
       - name: Test installed wheel outside checkout
         run: |
           uv venv /tmp/osrparse-wheel
-          uv pip install --python /tmp/osrparse-wheel/bin/python dist/*.whl pytest hypothesis
+          uv pip install --python /tmp/osrparse-wheel/bin/python dist/*.whl pytest hypothesis mypy
           cp -r tests /tmp/osrparse-wheel/tests
           cd /tmp/osrparse-wheel
           bin/python -m pytest -q tests
+          bin/python -m mypy --strict tests/typing_api.py
       - name: Record release benchmarks
         run: uv run --locked python benchmarks/compare.py --iterations 10 --repeats 5 --min-parse-speedup 0 --min-pack-speedup 0
       - uses: actions/upload-artifact@v4

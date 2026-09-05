@@ -54,7 +54,7 @@ print(r.mode, r.game_version, r.beatmap_hash, r.username,
 # parse the replay data from api v1's /get_replay endpoint
 lzma_string = retrieve_from_api()
 replay_data = parse_replay_data(lzma_string)
-# replay_data is a list of ReplayEvents
+# replay_data is a mutable sequence of ReplayEvents
 
 # write a replay back to a path
 replay.write_path("path/to/osr.osr")
@@ -83,6 +83,8 @@ uv run pytest -q
 cargo test --locked
 cargo fmt --check
 cargo clippy --locked --all-targets -- -D warnings
+uv run python tools/generate_stubs.py --check
+uv run mypy --strict tests/typing_api.py
 uv run ruff check
 uv run ruff format --check
 uv run --group docs sphinx-build -W --keep-going -b html docs build/html
@@ -109,5 +111,10 @@ Python versions older than 3.10 are no longer supported. Event fields, list edit
 encoding uses integer arithmetic to avoid precision loss for distant dates.
 
 See the [Rust implementation notes](docs/rust-port.md) and
-[benchmark results](benchmarks/README.md). The original
-[PyO3 port plan](docs/pyo3-port-plan.md) records the compatibility gates.
+[benchmark results](benchmarks/README.md).
+
+Type stubs are generated with PyO3's `experimental-inspect` metadata and
+Maturin. After changing the API, run `uv run python tools/generate_stubs.py`.
+The generator reuses the annotated Python model contracts and adds the sequence
+slot overloads that native introspection cannot express. CI checks the generated
+file and type-checks consumer examples. Do not edit `_native.pyi` by hand.

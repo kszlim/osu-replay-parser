@@ -37,19 +37,26 @@ pickle, deepcopy, and cyclic garbage collection. Numeric fields initially live
 in Rust; edits and dictionary inspection promote an individual event to Python
 state. Serialization combines edited views with untouched native frames.
 Unusual numeric spellings, arbitrary-size integers, and non-finite values use
-the compatibility decoder and may materialize Python values eagerly. Errors
-retain the existing Python exception classes.
+Python's numeric conversions and may materialize Python values eagerly. They
+run through the same decoder as native scalars; there is no separate legacy
+parser. Errors retain Python exception classes. Invalid non-GameMode arguments
+to `parse_replay_data` now raise TypeError instead of producing raw string rows.
 
 ## Native layout and serialization
 
-- `rust/storage.rs` owns decoded headers and vectors and implements fully native
-  encoding for unchanged headers/events. Header reads and unchanged event views
-  do not disable this path. Mutable lifebar exposure or header edits use the
-  compatibility header writer; unchanged events still serialize natively.
+- `rust/storage.rs` owns decoded headers and vectors and defines one wire encoder
+  shared by native and edited Python values. Header reads and unchanged event views
+  do not disable this path. Mutable lifebar exposure or header edits convert
+  Python values before calling the same encoder; unchanged events still serialize
+  natively.
 - `rust/sequence.rs` implements lazy views, caches, list promotion, iteration,
   and copy/pickle/GC support. `rust/replay.rs` implements native field access and
   the dataclass adapter's materialization boundary.
-- `rust/events.rs` parses checked integers and floats into Rust frames.
+- `rust/parse.rs` defines the binary and event grammar once. Its numeric parser
+  interface selects Rust scalars or Python numeric conversions without duplicating
+  parsing rules. `rust/events.rs` contains only the mode/frame data types.
+- `osrparse/_model.py` binds dataclass and subclass behavior to native types once;
+  the Python model declarations remain the public constructor/type contracts.
 - `rust/formatting.rs` uses Ryu with Python's decimal/exponent notation and
   rounding, including a regression for a tie where Rust's default debug output
   differs from Python. Native packing creates neither field caches nor event
@@ -68,9 +75,7 @@ solely to `zerocopy`. Own Rust code forbids unsafe code.
 
 ## Validation and benchmarks
 
-The previously committed tests remain unchanged. The 193-test suite passes on
-CPython 3.10–3.14 on Linux; ten Rust tests pass on Rust 1.85 and 1.97. Additional
-coverage checks
+The previously committed tests remain unchanged. Coverage checks
 lazy allocation, event/sequence aliases after edits, native packing without
 materialization, malformed inputs, negative flags across Python versions,
 float formatting, cyclic references, and iterator exhaustion.
@@ -90,3 +95,22 @@ by this change. Native dependency notices ship in `THIRD_PARTY_LICENSES.md`.
 Existing format quirks remain: zero RNG seeds are omitted on packing, empty
 lifebars normalize to None, `perfect` is an integer when decoded, legacy
 non-minimal string lengths remain, and four-byte replay IDs are accepted.
+
+## Generated typing
+
+`tools/generate_stubs.py` uses Maturin's binary introspection of the inline PyO3
+module. Native function/method annotations live beside their Rust implementation.
+The generator re-exports the existing annotated Python dataclass contracts and
+supplies a small explicit overlay for overloaded sequence slots and in-place
+return types unsupported by PyO3 introspection. It does not duplicate model
+fields or constructors. `py.typed` and the generated `_native.pyi` ship in wheels.
+
+Run `uv run python tools/generate_stubs.py` to regenerate, or add `--check` to
+check for drift. CI also runs strict Mypy consumer examples with negative cases,
+so accidentally widening important types to Any fails validation. Do not use
+Maturin's bare `--generate-stubs` output as a substitute for this adapter: it
+cannot see Python-installed dataclass contracts.
+
+Frozen Python code is isolated in `tests/reference/` for differential tests and
+honest benchmarks, and is excluded from wheels. Superseded plans and historical
+benchmark snapshots are retained in Git history instead of the current tree.

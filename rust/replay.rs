@@ -44,6 +44,14 @@ impl Replay {
         }
     }
 
+    pub fn with_values(storage: ReplayStorage, values: Py<PyDict>) -> Self {
+        Self {
+            storage: Some(storage),
+            values: Some(values),
+            header_dirty: true,
+        }
+    }
+
     pub fn native_snapshot(&self, py: Python<'_>) -> PyResult<Option<ReplayStorage>> {
         let Some(storage) = &self.storage else {
             return Ok(None);
@@ -98,26 +106,26 @@ impl Replay {
             "mode" => py
                 .import("osrparse.utils")?
                 .getattr("GameMode")?
-                .call1((s.mode,))?,
+                .call1((s.header.mode,))?,
             "mods" => py
                 .import("osrparse.utils")?
                 .getattr("Mod")?
-                .call1((s.mods,))?,
-            "game_version" => s.game_version.into_pyobject(py)?.into_any(),
-            "beatmap_hash" => s.strings[0].as_deref().into_pyobject(py)?.into_any(),
-            "username" => s.strings[1].as_deref().into_pyobject(py)?.into_any(),
-            "replay_hash" => s.strings[2].as_deref().into_pyobject(py)?.into_any(),
-            "count_300" => s.hits[0].into_pyobject(py)?.into_any(),
-            "count_100" => s.hits[1].into_pyobject(py)?.into_any(),
-            "count_50" => s.hits[2].into_pyobject(py)?.into_any(),
-            "count_geki" => s.hits[3].into_pyobject(py)?.into_any(),
-            "count_katu" => s.hits[4].into_pyobject(py)?.into_any(),
-            "count_miss" => s.hits[5].into_pyobject(py)?.into_any(),
-            "score" => s.score.into_pyobject(py)?.into_any(),
-            "max_combo" => s.max_combo.into_pyobject(py)?.into_any(),
-            "perfect" => s.perfect.into_pyobject(py)?.into_any(),
-            "timestamp" => bindings::timestamp(py, s.ticks)?,
-            "replay_id" => s.replay_id.into_pyobject(py)?.into_any(),
+                .call1((s.header.mods,))?,
+            "game_version" => s.header.game_version.into_pyobject(py)?.into_any(),
+            "beatmap_hash" => s.header.strings[0].as_deref().into_pyobject(py)?.into_any(),
+            "username" => s.header.strings[1].as_deref().into_pyobject(py)?.into_any(),
+            "replay_hash" => s.header.strings[2].as_deref().into_pyobject(py)?.into_any(),
+            "count_300" => s.header.hits[0].into_pyobject(py)?.into_any(),
+            "count_100" => s.header.hits[1].into_pyobject(py)?.into_any(),
+            "count_50" => s.header.hits[2].into_pyobject(py)?.into_any(),
+            "count_geki" => s.header.hits[3].into_pyobject(py)?.into_any(),
+            "count_katu" => s.header.hits[4].into_pyobject(py)?.into_any(),
+            "count_miss" => s.header.hits[5].into_pyobject(py)?.into_any(),
+            "score" => s.header.score.into_pyobject(py)?.into_any(),
+            "max_combo" => s.header.max_combo.into_pyobject(py)?.into_any(),
+            "perfect" => s.header.perfect.into_pyobject(py)?.into_any(),
+            "timestamp" => bindings::timestamp(py, s.header.ticks)?,
+            "replay_id" => s.header.replay_id.into_pyobject(py)?.into_any(),
             "rng_seed" => s.seed.into_pyobject(py)?.into_any(),
             "replay_data" => Py::new(py, ReplayData::from_frames(s.frames.clone()))?
                 .into_bound(py)
@@ -178,86 +186,6 @@ impl Replay {
         }
     }
     #[getter]
-    fn mode<'py>(&mut self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
-        self.field(py, "mode")
-    }
-    #[getter]
-    fn game_version<'py>(&mut self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
-        self.field(py, "game_version")
-    }
-    #[getter]
-    fn beatmap_hash<'py>(&mut self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
-        self.field(py, "beatmap_hash")
-    }
-    #[getter]
-    fn username<'py>(&mut self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
-        self.field(py, "username")
-    }
-    #[getter]
-    fn replay_hash<'py>(&mut self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
-        self.field(py, "replay_hash")
-    }
-    #[getter]
-    fn count_300<'py>(&mut self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
-        self.field(py, "count_300")
-    }
-    #[getter]
-    fn count_100<'py>(&mut self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
-        self.field(py, "count_100")
-    }
-    #[getter]
-    fn count_50<'py>(&mut self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
-        self.field(py, "count_50")
-    }
-    #[getter]
-    fn count_geki<'py>(&mut self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
-        self.field(py, "count_geki")
-    }
-    #[getter]
-    fn count_katu<'py>(&mut self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
-        self.field(py, "count_katu")
-    }
-    #[getter]
-    fn count_miss<'py>(&mut self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
-        self.field(py, "count_miss")
-    }
-    #[getter]
-    fn score<'py>(&mut self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
-        self.field(py, "score")
-    }
-    #[getter]
-    fn max_combo<'py>(&mut self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
-        self.field(py, "max_combo")
-    }
-    #[getter]
-    fn perfect<'py>(&mut self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
-        self.field(py, "perfect")
-    }
-    #[getter]
-    fn mods<'py>(&mut self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
-        self.field(py, "mods")
-    }
-    #[getter]
-    fn life_bar_graph<'py>(&mut self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
-        self.field(py, "life_bar_graph")
-    }
-    #[getter]
-    fn timestamp<'py>(&mut self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
-        self.field(py, "timestamp")
-    }
-    #[getter]
-    fn replay_data<'py>(&mut self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
-        self.field(py, "replay_data")
-    }
-    #[getter]
-    fn replay_id<'py>(&mut self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
-        self.field(py, "replay_id")
-    }
-    #[getter]
-    fn rng_seed<'py>(&mut self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
-        self.field(py, "rng_seed")
-    }
-    #[getter]
     fn __dict__<'py>(&mut self, py: Python<'py>) -> PyResult<Bound<'py, PyDict>> {
         self.materialize(py)
     }
@@ -265,7 +193,7 @@ impl Replay {
         self.materialize(py)?;
         Ok(())
     }
-    fn __getattr__<'py>(&mut self, py: Python<'py>, name: &str) -> PyResult<Bound<'py, PyAny>> {
+    fn _get_field<'py>(&mut self, py: Python<'py>, name: &str) -> PyResult<Bound<'py, PyAny>> {
         self.field(py, name)
     }
     fn __setattr__(&mut self, py: Python<'_>, name: &str, value: Bound<'_, PyAny>) -> PyResult<()> {

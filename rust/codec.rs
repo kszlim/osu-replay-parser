@@ -58,10 +58,6 @@ impl<'a> Reader<'a> {
         self.read().map(u8::from_le_bytes)
     }
 
-    pub fn short(&mut self) -> Result<u16, ReadError> {
-        self.read().map(u16::from_le_bytes)
-    }
-
     pub fn int(&mut self) -> Result<u32, ReadError> {
         self.read().map(u32::from_le_bytes)
     }
