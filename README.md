@@ -118,3 +118,25 @@ Maturin. After changing the API, run `uv run python tools/generate_stubs.py`.
 The generator reuses the annotated Python model contracts and adds the sequence
 slot overloads that native introspection cannot express. CI checks the generated
 file and type-checks consumer examples. Do not edit `_native.pyi` by hand.
+
+### Wheels and releases
+
+CI builds and tests CPython 3.10–3.14 wheels on Linux x86-64 and ARM64
+(`manylinux2014`, glibc 2.17+), macOS Intel and Apple Silicon (macOS 11+), and
+Windows x86-64. Each wheel is installed and tested outside the checkout, then
+saved as an Actions artifact. Alpine/musl, Windows ARM64, 32-bit Python, PyPy,
+and free-threaded Python currently require separate support.
+
+To release, update the version in both `pyproject.toml` and `Cargo.toml`, refresh
+the lockfiles, and publish a GitHub release tagged `v<version>`. CI checks that
+the tag matches, waits for all validation and wheel jobs, attaches the 25 tested
+wheels and source archive to that release, and publishes those same artifacts
+to PyPI. PRs and ordinary pushes only build and test.
+
+Before the first PyPI release, configure a
+[trusted publisher](https://docs.pypi.org/trusted-publishers/adding-a-publisher/)
+for the `osrparse` project: owner `kszlim`, repository `osu-replay-parser`,
+workflow `ci.yml`, environment `pypi`. Configure the GitHub `pypi` environment
+with any desired release approvals. Publishing uses OIDC; no PyPI API token is
+stored in the workflow. This PR does not publish a package or change the current
+package version.

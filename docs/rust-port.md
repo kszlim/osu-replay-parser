@@ -87,10 +87,12 @@ The 10× parse speedup is a measured target, not a guarantee for every game mode
 or machine; see [the results](../benchmarks/README.md), including full-field costs.
 
 Builds use uv and Maturin, pinned Rust 1.97, and a tested minimum Rust 1.85.
-GitHub Actions covers Python 3.10–3.14 on Linux, macOS, and Windows, Rust checks,
-docs, distributions, and installed wheels. Local validation covers Linux;
-hosted macOS/Windows jobs must pass before release. No packages are published
-by this change. Native dependency notices ship in `THIRD_PARTY_LICENSES.md`.
+GitHub Actions tests installed Python 3.10–3.14 wheels on Linux x86-64/ARM64,
+macOS Intel/Apple Silicon, and Windows x86-64, alongside Rust checks, docs, and
+source distributions. Published GitHub releases attach those artifacts and
+publish them to PyPI after validation; see the [release setup](../README.md#wheels-and-releases).
+Local validation covers Linux; hosted jobs must pass before release. No packages
+are published by this PR. Native dependency notices ship in `THIRD_PARTY_LICENSES.md`.
 
 Existing format quirks remain: zero RNG seeds are omitted on packing, empty
 lifebars normalize to None, `perfect` is an integer when decoded, legacy
