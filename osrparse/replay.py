@@ -1,333 +1,39 @@
 from __future__ import annotations
 
-import base64
-import lzma
-import struct
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import datetime
 from os import PathLike
 from typing import BinaryIO
 
-from osrparse.utils import (
-    GameMode,
-    Key,
-    KeyMania,
-    KeyTaiko,
-    LifeBarState,
-    Mod,
-    ReplayEvent,
-    ReplayEventCatch,
-    ReplayEventMania,
-    ReplayEventOsu,
-    ReplayEventTaiko,
-)
+from osrparse import _native
+from osrparse.utils import GameMode, LifeBarState, Mod, ReplayEvent
+from osrparse.utils import Key as Key
+from osrparse.utils import KeyMania as KeyMania
+from osrparse.utils import KeyTaiko as KeyTaiko
+from osrparse.utils import ReplayEventCatch as ReplayEventCatch
+from osrparse.utils import ReplayEventMania as ReplayEventMania
+from osrparse.utils import ReplayEventOsu as ReplayEventOsu
+from osrparse.utils import ReplayEventTaiko as ReplayEventTaiko
 
 
 class _Unpacker:
-    """
-    Helper class for dealing with the ``.osr`` format. Not intended to be used
-    by consumers.
-    """
+    """Compatibility adapter for the former private unpacker helpers."""
 
     def __init__(self, replay_data):
         self.replay_data = replay_data
         self.offset = 0
 
-    def unpack_byte(self):
-        return self.unpack_once("<B")
-
-    def unpack_short(self):
-        return self.unpack_once("<H")
-
-    def unpack_int(self):
-        return self.unpack_once("<I")
-
-    def unpack_long(self):
-        return self.unpack_once("<q")
-
-    def unpack_once(self, specifier):
-        unpacked = struct.unpack_from(specifier, self.replay_data, self.offset)
-        self.offset += struct.calcsize(specifier)
-        # `struct.unpack_from` always returns a tuple, even if there's only one
-        # element
-        return unpacked[0]
-
-    def string_length(self, binarystream):
-        result = 0
-        shift = 0
-        while True:
-            byte = binarystream[self.offset]
-            self.offset += 1
-            result = result | ((byte & 0b01111111) << shift)
-            if (byte & 0b10000000) == 0x00:
-                break
-            shift += 7
-        return result
-
-    def unpack_string(self):
-        if self.replay_data[self.offset] == 0x00:
-            self.offset += 1
-        elif self.replay_data[self.offset] == 0x0B:
-            self.offset += 1
-            string_length = self.string_length(self.replay_data)
-            offset_end = self.offset + string_length
-            string = self.replay_data[self.offset : offset_end].decode("utf-8")
-            self.offset = offset_end
-            return string
-        else:
-            raise ValueError(
-                "Expected the first byte of a string to be 0x00 "
-                f"or 0x0b, but got {self.replay_data[self.offset]}"
-            )
+    def unpack(self):
+        return _native.unpack(bytes(self.replay_data), Replay)
 
     def unpack_timestamp(self):
-        ticks = self.unpack_long()
-        microseconds, remainder = divmod(ticks, 10)
-        # Match timedelta's round-half-to-even rule without floating-point loss.
-        if remainder > 5 or (remainder == 5 and microseconds % 2):
-            microseconds += 1
-        timestamp = datetime.min + timedelta(microseconds=microseconds)
-        timestamp = timestamp.replace(tzinfo=timezone.utc)
+        timestamp = _native.unpack_timestamp(bytes(self.replay_data[self.offset :]))
+        self.offset += 8
         return timestamp
-
-    def unpack_play_data(self, mode):
-        replay_length = self.unpack_int()
-        offset_end = self.offset + replay_length
-        data = self.replay_data[self.offset : offset_end]
-        data = lzma.decompress(data, format=lzma.FORMAT_AUTO)
-        data = data.decode("ascii")
-        (replay_data, rng_seed) = self.parse_replay_data(data, mode)
-        self.offset = offset_end
-        return (replay_data, rng_seed)
 
     @staticmethod
     def parse_replay_data(replay_data_str, mode):
-        # remove trailing comma (if it exists) to make splitting easier.
-        # stable always adds a trailing comma, but some lazer versions do not.
-        replay_data_str = replay_data_str.rstrip(",")
-        events = [event.split("|") for event in replay_data_str.split(",")]
-
-        rng_seed = None
-        play_data = []
-        for i, event in enumerate(events):
-            time_delta = int(event[0])
-            x = event[1]
-            y = event[2]
-            keys = int(event[3])
-
-            if time_delta == -12345 and i == len(events) - 1:
-                rng_seed = keys
-                continue
-
-            # I don't really know why these frames exist, but lazer removes them
-            # and they can cause issues for minigame replays - e.g., mania
-            # interprets x as keys.
-            # See
-            # https://github.com/ppy/osu/blob/6a04708a7e9801949c6c7ac7ddf6a4d7
-            # fa0835e5/osu.Game/Scoring/Legacy/LegacyScoreDecoder.cs#L290-L294.
-            if i < 2 and float(x) == 256 and float(y) == -500:
-                continue
-
-            if mode is GameMode.STD:
-                keys = Key(keys)
-                event = ReplayEventOsu(time_delta, float(x), float(y), keys)
-            if mode is GameMode.TAIKO:
-                event = ReplayEventTaiko(time_delta, int(x), KeyTaiko(keys))
-            if mode is GameMode.CTB:
-                event = ReplayEventCatch(time_delta, float(x), int(keys) == 1)
-            if mode is GameMode.MANIA:
-                event = ReplayEventMania(time_delta, KeyMania(int(x)))
-
-            play_data.append(event)
-
-        return (play_data, rng_seed)
-
-    def unpack_replay_id(self):
-        # old replays had replay_id stored as an int32 (4 bytes) instead of a
-        # long (8 bytes), so fall back to short if necessary.
-        # lazer checks against the gameversion before trying to parse as a
-        # short, but there may be some weirdness with replays that were set
-        # during this time but downloaded later having actually correct (long)
-        # replay_ids, since they were likely manually migrated at some point
-        # after the switch to long took place.
-        # See:
-        # https://github.com/ppy/osu/blob/84e1ff79a0736aa6c7a44804b585ab1c54a843
-        # 99/osu.Game/Scoring/Legacy/LegacyScoreDecoder.cs#L78-L81
-        try:
-            replay_id = self.unpack_long()
-        except struct.error:
-            replay_id = self.unpack_int()
-        return replay_id
-
-    def unpack_life_bar(self):
-        life_bar = self.unpack_string()
-        if not life_bar:
-            return None
-
-        # remove trailing comma to make splitting easier
-        life_bar = life_bar[:-1]
-        states = [state.split("|") for state in life_bar.split(",")]
-
-        return [LifeBarState(int(s[0]), float(s[1])) for s in states]
-
-    def unpack(self):
-        mode = GameMode(self.unpack_byte())
-        game_version = self.unpack_int()
-        beatmap_hash = self.unpack_string()
-        username = self.unpack_string()
-        replay_hash = self.unpack_string()
-        count_300 = self.unpack_short()
-        count_100 = self.unpack_short()
-        count_50 = self.unpack_short()
-        count_geki = self.unpack_short()
-        count_katu = self.unpack_short()
-        count_miss = self.unpack_short()
-        score = self.unpack_int()
-        max_combo = self.unpack_short()
-        perfect = self.unpack_byte()
-        mods = Mod(self.unpack_int())
-        life_bar_graph = self.unpack_life_bar()
-        timestamp = self.unpack_timestamp()
-        (replay_data, rng_seed) = self.unpack_play_data(mode)
-        replay_id = self.unpack_replay_id()
-
-        return Replay(
-            mode,
-            game_version,
-            beatmap_hash,
-            username,
-            replay_hash,
-            count_300,
-            count_100,
-            count_50,
-            count_geki,
-            count_katu,
-            count_miss,
-            score,
-            max_combo,
-            perfect,
-            mods,
-            life_bar_graph,
-            timestamp,
-            replay_data,
-            replay_id,
-            rng_seed,
-        )
-
-
-class _Packer:
-    def __init__(self, replay, *, dict_size=None, mode=None):
-        self.replay = replay
-        self.dict_size = dict_size or 1 << 21
-        self.mode = mode or lzma.MODE_FAST
-
-    def pack_byte(self, data):
-        return struct.pack("<B", data)
-
-    def pack_short(self, data):
-        return struct.pack("<H", data)
-
-    def pack_int(self, data):
-        return struct.pack("<I", data)
-
-    def pack_long(self, data):
-        return struct.pack("<q", data)
-
-    def pack_ULEB128(self, data):
-        # https://github.com/mohanson/leb128
-        r, i = [], len(data)
-
-        while True:
-            byte = i & 0x7F
-            i = i >> 7
-
-            if (i == 0 and byte & 0x40 == 0) or (i == -1 and byte & 0x40 != 0):
-                r.append(byte)
-                return b"".join(map(self.pack_byte, r))
-
-            r.append(0x80 | byte)
-
-    def pack_string(self, data):
-        if data:
-            data = data.encode("utf-8")
-            return self.pack_byte(11) + self.pack_ULEB128(data) + data
-        return self.pack_byte(11) + self.pack_byte(0)
-
-    def pack_timestamp(self):
-        # Windows ticks count 100 ns intervals since year 0001. Keep the
-        # calculation integral across Python's entire datetime range.
-        timestamp = self.replay.timestamp.astimezone(timezone.utc)
-        delta = timestamp - datetime.min.replace(tzinfo=timezone.utc)
-        ticks = (
-            (delta.days * 86400 + delta.seconds) * 1000000 + delta.microseconds
-        ) * 10
-        return self.pack_long(ticks)
-
-    def pack_life_bar(self):
-        data = ""
-        if self.replay.life_bar_graph is None:
-            return self.pack_string(data)
-
-        for state in self.replay.life_bar_graph:
-            life = state.life
-            # store 0 or 1 instead of 0.0 or 1.0
-            if int(life) == life:
-                life = int(state.life)
-
-            data += f"{state.time}|{life},"
-
-        return self.pack_string(data)
-
-    def pack_replay_data(self):
-        data = ""
-        for event in self.replay.replay_data:
-            t = event.time_delta
-            if isinstance(event, ReplayEventOsu):
-                data += f"{t}|{event.x}|{event.y}|{event.keys.value},"
-            elif isinstance(event, ReplayEventTaiko):
-                data += f"{t}|{event.x}|0|{event.keys.value},"
-            elif isinstance(event, ReplayEventCatch):
-                data += f"{t}|{event.x}|0|{int(event.dashing)},"
-            elif isinstance(event, ReplayEventMania):
-                data += f"{t}|{event.keys.value}|0|0,"
-
-        if self.replay.rng_seed:
-            data += f"-12345|0|0|{self.replay.rng_seed},"
-
-        filters = [
-            {"id": lzma.FILTER_LZMA1, "dict_size": self.dict_size, "mode": self.mode}
-        ]
-
-        data = data.encode("ascii")
-        compressed = lzma.compress(data, format=lzma.FORMAT_ALONE, filters=filters)
-
-        return self.pack_int(len(compressed)) + compressed
-
-    def pack(self):
-        r = self.replay
-        data = b""
-
-        data += self.pack_byte(r.mode.value)
-        data += self.pack_int(r.game_version)
-        data += self.pack_string(r.beatmap_hash)
-        data += self.pack_string(r.username)
-        data += self.pack_string(r.replay_hash)
-        data += self.pack_short(r.count_300)
-        data += self.pack_short(r.count_100)
-        data += self.pack_short(r.count_50)
-        data += self.pack_short(r.count_geki)
-        data += self.pack_short(r.count_katu)
-        data += self.pack_short(r.count_miss)
-        data += self.pack_int(r.score)
-        data += self.pack_short(r.max_combo)
-        data += self.pack_byte(r.perfect)
-        data += self.pack_int(r.mods.value)
-        data += self.pack_life_bar()
-        data += self.pack_timestamp()
-        data += self.pack_replay_data()
-        data += self.pack_long(r.replay_id)
-
-        return data
+        return _native.parse_events(replay_data_str, mode)
 
 
 @dataclass
@@ -454,7 +160,9 @@ class Replay:
         Replay
             The parsed replay object.
         """
-        return _Unpacker(data).unpack()
+        return _native.unpack(
+            bytes(data) if isinstance(data, bytearray) else data, Replay
+        )
 
     def write_path(
         self,
@@ -509,7 +217,7 @@ class Replay:
         bytes
             The bytes representing this ``Replay``, in ``.osr`` format.
         """
-        return _Packer(self, dict_size=dict_size, mode=mode).pack()
+        return _native.pack(self, dict_size=dict_size, mode=mode)
 
 
 def parse_replay_data(
@@ -549,11 +257,6 @@ def parse_replay_data(
     mode: GameMode
         What mode to parse the replay data as.
     """
-    # assume the data is already decoded if it's been decompressed
-    if not decoded and not decompressed:
-        data_string = base64.b64decode(data_string)
-    if not decompressed:
-        data_string = lzma.decompress(data_string, format=lzma.FORMAT_AUTO)
-        data_string = data_string.decode("ascii")
-    (replay_data, _seed) = _Unpacker.parse_replay_data(data_string, mode)
-    return replay_data
+    return _native.parse_replay_data(
+        data_string, decoded=bool(decoded), decompressed=bool(decompressed), mode=mode
+    )

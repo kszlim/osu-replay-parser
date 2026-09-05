@@ -5,8 +5,9 @@
 Move all replay decoding and encoding into Rust exposed through PyO3, with no
 changes, deletions, skips, or weakened assertions in existing tests. Preserve
 the public `osrparse`, `osrparse.replay`, `osrparse.utils`, and
-`osrparse.strategies` imports. This document is a plan; no Rust implementation
-has been introduced yet.
+`osrparse.strategies` imports. This document records the original migration
+plan. The codec has now been implemented; see [implementation notes](rust-port.md)
+for the delivered scope, evidence, and remaining release-platform validation.
 
 The modernization baseline supports CPython 3.10–3.14. There are 17 original
 tracked test cases, a pre-existing untracked 1,000-replay benchmark, and nine

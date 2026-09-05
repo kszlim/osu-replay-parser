@@ -6,6 +6,13 @@ permissions:
   contents: read
 
 jobs:
+  rust-msrv:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.85.0
+      - run: cargo +1.85.0 test --locked
+
   test:
     strategy:
       fail-fast: false
@@ -15,6 +22,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.97.0
       - uses: astral-sh/setup-uv@v7
         with:
           version: "0.12.10"
@@ -27,12 +35,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.97.0
+        with:
+          components: rustfmt, clippy
       - uses: astral-sh/setup-uv@v7
         with:
           version: "0.12.10"
           enable-cache: true
           python-version: "3.14"
       - run: uv sync --locked --group docs
+      - run: cargo fmt --check
+      - run: cargo test --locked
+      - run: cargo clippy --locked --all-targets -- -D warnings
       - run: uv run --locked ruff check
       - run: uv run --locked ruff format --check
       - run: uv run --locked --group docs sphinx-build -W --keep-going -b html docs build/html
@@ -45,3 +59,11 @@ jobs:
           cp -r tests /tmp/osrparse-wheel/tests
           cd /tmp/osrparse-wheel
           bin/python -m pytest -q tests
+      - name: Record release benchmarks
+        run: uv run --locked python benchmarks/compare.py --iterations 10 --repeats 5 --min-parse-speedup 0 --min-pack-speedup 0
+      - uses: actions/upload-artifact@v4
+        with:
+          name: distributions-and-benchmarks
+          path: |
+            dist/*
+            benchmarks/results.json

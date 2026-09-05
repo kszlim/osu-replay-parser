@@ -8,6 +8,9 @@ This is a parser for the ``.osr`` format for osu! replay files, as described by 
 
 Requires Python 3.10 or newer (tested through Python 3.14).
 
+The replay codec is implemented in Rust with PyO3. Public replay/event objects
+remain mutable Python dataclasses, and game modes and keys remain Python enums.
+
 To install:
 
 ```sh
@@ -64,28 +67,41 @@ replay.write_path("path/to/new_osr.osr")
 
 ## Development
 
-Install [uv](https://docs.astral.sh/uv/getting-started/installation/), then run:
+Install [uv](https://docs.astral.sh/uv/getting-started/installation/),
+[Rust](https://rustup.rs/), and a C compiler, then run:
 
 ```sh
 uv sync --locked
+uv run maturin develop --release
 uv run pytest -q
+cargo test --locked
+cargo fmt --check
+cargo clippy --locked --all-targets -- -D warnings
 uv run ruff check
 uv run ruff format --check
 uv run --group docs sphinx-build -W --keep-going -b html docs build/html
 uv build
 uv run twine check dist/*
+uv run python benchmarks/compare.py
 ```
 
 `uv.lock` pins development dependencies; `uv lock --upgrade` refreshes them.
 The `dev` dependency group contains the test and release tools. The existing
 `osrparse[dev]` extra remains available for consumers of the Hypothesis strategies.
-The runtime package has no third-party dependencies. Builds use `uv_build`.
+The runtime package has no third-party Python dependencies. uv manages the
+environment and invokes Maturin as the build backend for the PyO3 extension.
+Cargo.lock pins Rust dependencies; rust-toolchain.toml pins the development
+toolchain. liblzma is statically linked, so installed wheels do not need Rust
+or a system liblzma. Source builds require Rust and a C compiler.
 GitHub Actions runs the suite on Python 3.10–3.14 on Linux, macOS, and Windows,
-and checks the documentation, distributions, and an installed wheel.
+and checks Rust formatting, Clippy, documentation, distributions, an installed
+wheel, and records benchmark results. Rebuild with `maturin develop --release`
+after editing Rust sources; performance measurements require a release build.
 
 Python versions older than 3.10 are no longer supported. Public classes remain
 mutable dataclasses. Timestamp encoding now uses integer arithmetic to avoid
 precision loss for dates far from the Unix epoch.
 
-See the [PyO3 port plan](docs/pyo3-port-plan.md) for the proposed Rust migration
-and its compatibility gates.
+See the [Rust implementation notes](docs/rust-port.md) and
+[benchmark results](benchmarks/README.md). The original
+[PyO3 port plan](docs/pyo3-port-plan.md) records the compatibility gates.

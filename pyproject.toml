@@ -1,6 +1,6 @@
 [build-system]
-requires = ["uv_build>=0.12.10,<0.13"]
-build-backend = "uv_build"
+requires = ["maturin>=1.14,<2"]
+build-backend = "maturin"
 
 [project]
 name = "osrparse"
@@ -9,7 +9,7 @@ description = "Parser for osr files and lzma replay streams for osu!"
 readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"
-license-files = ["LICENSE"]
+license-files = ["LICENSE", "THIRD_PARTY_LICENSES.md"]
 keywords = ["osu!", "osr", "replay", "replays", "parsing", "parser", "python"]
 authors = [
   {name = "Kevin Lim",  email = "kszlim@gmail.com"      },
@@ -33,15 +33,23 @@ classifiers = [
 dev = ["hypothesis>=6"]
 
 [dependency-groups]
-dev = ["hypothesis>=6", "pytest>=8", "ruff>=0.11", "twine>=6"]
+dev = ["hypothesis>=6", "pytest>=8", "ruff>=0.11", "twine>=6", "maturin>=1.14,<2"]
 docs = ["sphinx>=8", "furo>=2024.8.6"]
 
 [project.urls]
 "Homepage" = "https://github.com/kszlim/osu-replay-parser"
 
-[tool.uv.build-backend]
-module-root = ""
-source-include = ["tests/**", "docs/**", "Makefile", "uv.lock"]
+[tool.maturin]
+module-name = "osrparse._native"
+python-source = "."
+include = [
+  { path = "tests/**", format = "sdist" },
+  { path = "docs/**", format = "sdist" },
+  { path = "benchmarks/**", format = "sdist" },
+  { path = "Makefile", format = "sdist" },
+  { path = "uv.lock", format = "sdist" },
+  { path = "rust-toolchain.toml", format = "sdist" },
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -49,7 +57,7 @@ addopts = "--strict-config --strict-markers"
 
 [tool.ruff]
 target-version = "py310"
-include = ["osrparse/**/*.py", "docs/conf.py", "pyproject.toml"]
+include = ["osrparse/**/*.py", "osrparse/**/*.pyi", "docs/conf.py", "pyproject.toml", "tests/test_native_compatibility.py", "benchmarks/*.py"]
 
 [tool.ruff.lint]
 select = ["E4", "E7", "E9", "F", "I", "UP"]
