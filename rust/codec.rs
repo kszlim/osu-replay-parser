@@ -2,8 +2,8 @@
 
 use std::io::{self, Write};
 
-use xz2::stream::{Action, LzmaOptions, Mode, Status, Stream};
-use xz2::write::XzEncoder;
+use liblzma::stream::{Action, LzmaOptions, Mode, Status, Stream};
+use liblzma::write::XzEncoder;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ReadError {

@@ -8,6 +8,7 @@ object construction, exclude file I/O, and use median per-operation latency.
 from __future__ import annotations
 
 import argparse
+import dataclasses
 import gc
 import hashlib
 import json
@@ -17,13 +18,27 @@ import subprocess
 import sys
 import time
 import tracemalloc
+from enum import Enum
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
+from benchmarks.python_baseline import Replay as PythonReplay  # noqa: E402
 from osrparse import Replay, _native  # noqa: E402
-from tests.reference.python_replay import Replay as PythonReplay  # noqa: E402
+
+
+def canonical(value):
+    if isinstance(value, Enum):
+        return type(value).__name__, value.value
+    if dataclasses.is_dataclass(value):
+        return {
+            field.name: canonical(getattr(value, field.name))
+            for field in dataclasses.fields(value)
+        }
+    if isinstance(value, list):
+        return [canonical(item) for item in value]
+    return value
 
 
 def sample(function, iterations):
@@ -70,7 +85,7 @@ def main():
     parser.add_argument("--iterations", type=int, default=30)
     parser.add_argument("--repeats", type=int, default=7)
     parser.add_argument("--output", type=Path, default=ROOT / "benchmarks/results.json")
-    parser.add_argument("--min-parse-speedup", type=float, default=1.5)
+    parser.add_argument("--min-parse-speedup", type=float, default=3.0)
     parser.add_argument("--min-pack-speedup", type=float, default=1.0)
     args = parser.parse_args()
     if args.iterations < 1 or args.repeats < 1:
@@ -103,6 +118,8 @@ def main():
                 ROOT / "Cargo.lock",
                 ROOT / "Cargo.toml",
                 ROOT / "osrparse/replay.py",
+                ROOT / "osrparse/utils.py",
+                ROOT / "benchmarks/python_baseline_utils.py",
             ]
         },
     }
@@ -110,7 +127,7 @@ def main():
         data = (ROOT / "tests/resources" / filename).read_bytes()
         python_replay = PythonReplay.from_string(data)
         native_replay = Replay.from_string(data)
-        assert vars(python_replay) == vars(native_replay)
+        assert canonical(python_replay) == canonical(native_replay)
         assert python_replay.pack() == native_replay.pack()
 
         def python_parse():

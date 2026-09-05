@@ -8,8 +8,10 @@ This is a parser for the ``.osr`` format for osu! replay files, as described by 
 
 Requires Python 3.10 or newer (tested through Python 3.14).
 
-The replay codec is implemented in Rust with PyO3. Public replay/event objects
-remain mutable Python dataclasses, and game modes and keys remain Python enums.
+The replay codec and event storage are implemented in Rust with PyO3. Replay
+headers remain Python dataclasses; native event objects retain dataclass helpers
+and mutable fields. Game modes, mods, and key flags remain Python enums, so
+identity comparisons such as `replay.mode is GameMode.STD` work.
 
 To install:
 
@@ -98,9 +100,9 @@ and checks Rust formatting, Clippy, documentation, distributions, an installed
 wheel, and records benchmark results. Rebuild with `maturin develop --release`
 after editing Rust sources; performance measurements require a release build.
 
-Python versions older than 3.10 are no longer supported. Public classes remain
-mutable dataclasses. Timestamp encoding now uses integer arithmetic to avoid
-precision loss for dates far from the Unix epoch.
+Python versions older than 3.10 are no longer supported. Event fields, list edits,
+`vars`, dataclass helpers, pickling, and subclassing remain supported. Timestamp
+encoding uses integer arithmetic to avoid precision loss for distant dates.
 
 See the [Rust implementation notes](docs/rust-port.md) and
 [benchmark results](benchmarks/README.md). The original

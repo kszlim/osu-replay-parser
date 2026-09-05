@@ -12,16 +12,11 @@ use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyBytes, PyDict, PyFloat, PyInt, PyList, PyString, PyTuple, PyType};
 
 use crate::codec::{self, ReadError, Reader};
+use crate::{events, models};
 
 type Object<'py> = Bound<'py, PyAny>;
 
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum EventKind {
-    Osu,
-    Taiko,
-    Catch,
-    Mania,
-}
+use crate::events::Mode as EventKind;
 
 fn exception(py: Python<'_>, module: &str, name: &str, message: impl Into<String>) -> PyErr {
     match py
@@ -126,6 +121,48 @@ impl<'py> Api<'py> {
     }
 
     fn events(
+        &self,
+        text: &str,
+        mode: &Object<'py>,
+    ) -> PyResult<(Bound<'py, PyList>, Object<'py>)> {
+        let modes = self.utils.getattr("GameMode")?;
+        let selected = [
+            (events::Mode::Osu, "STD", "Key"),
+            (events::Mode::Taiko, "TAIKO", "KeyTaiko"),
+            (events::Mode::Catch, "CTB", "Key"),
+            (events::Mode::Mania, "MANIA", "KeyMania"),
+        ]
+        .into_iter()
+        .find(|(_, name, _)| modes.getattr(*name).is_ok_and(|member| mode.is(member)));
+        if let Some((kind, _, key_name)) = selected {
+            if let Ok((frames, seed)) = self.py.detach(|| events::parse(text, kind)) {
+                let key_type = self.utils.getattr(key_name)?;
+                let mut cache = HashMap::<i64, Py<PyAny>>::new();
+                let mut result = Vec::with_capacity(frames.len());
+                for frame in frames {
+                    let keys = if let Some(value) = frame.keys() {
+                        let member = match cache.entry(value) {
+                            std::collections::hash_map::Entry::Occupied(entry) => entry.into_mut(),
+                            std::collections::hash_map::Entry::Vacant(entry) => {
+                                entry.insert(key_type.call1((value,))?.unbind())
+                            }
+                        };
+                        Some(member.clone_ref(self.py))
+                    } else {
+                        None
+                    };
+                    result.push(models::into_python(self.py, frame, keys)?);
+                }
+                return Ok((
+                    PyList::new(self.py, result)?,
+                    seed.into_pyobject(self.py)?.into_any(),
+                ));
+            }
+        }
+        self.events_compat(text, mode)
+    }
+
+    fn events_compat(
         &self,
         text: &str,
         mode: &Object<'py>,
