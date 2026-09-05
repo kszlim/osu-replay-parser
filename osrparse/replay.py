@@ -1,13 +1,26 @@
+from __future__ import annotations
+
+import base64
 import lzma
 import struct
-from datetime import datetime, timezone, timedelta
-from typing import List, Optional
-import base64
 from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
+from os import PathLike
+from typing import BinaryIO
 
-from osrparse.utils import (Mod, GameMode, ReplayEvent, ReplayEventOsu,
-    ReplayEventCatch, ReplayEventMania, ReplayEventTaiko, Key, KeyMania,
-    KeyTaiko, LifeBarState)
+from osrparse.utils import (
+    GameMode,
+    Key,
+    KeyMania,
+    KeyTaiko,
+    LifeBarState,
+    Mod,
+    ReplayEvent,
+    ReplayEventCatch,
+    ReplayEventMania,
+    ReplayEventOsu,
+    ReplayEventTaiko,
+)
 
 
 class _Unpacker:
@@ -15,6 +28,7 @@ class _Unpacker:
     Helper class for dealing with the ``.osr`` format. Not intended to be used
     by consumers.
     """
+
     def __init__(self, replay_data):
         self.replay_data = replay_data
         self.offset = 0
@@ -44,7 +58,7 @@ class _Unpacker:
         while True:
             byte = binarystream[self.offset]
             self.offset += 1
-            result = result |((byte & 0b01111111) << shift)
+            result = result | ((byte & 0b01111111) << shift)
             if (byte & 0b10000000) == 0x00:
                 break
             shift += 7
@@ -53,27 +67,33 @@ class _Unpacker:
     def unpack_string(self):
         if self.replay_data[self.offset] == 0x00:
             self.offset += 1
-        elif self.replay_data[self.offset] == 0x0b:
+        elif self.replay_data[self.offset] == 0x0B:
             self.offset += 1
             string_length = self.string_length(self.replay_data)
             offset_end = self.offset + string_length
-            string = self.replay_data[self.offset:offset_end].decode("utf-8")
+            string = self.replay_data[self.offset : offset_end].decode("utf-8")
             self.offset = offset_end
             return string
         else:
-            raise ValueError("Expected the first byte of a string to be 0x00 "
-                f"or 0x0b, but got {self.replay_data[self.offset]}")
+            raise ValueError(
+                "Expected the first byte of a string to be 0x00 "
+                f"or 0x0b, but got {self.replay_data[self.offset]}"
+            )
 
     def unpack_timestamp(self):
         ticks = self.unpack_long()
-        timestamp = datetime.min + timedelta(microseconds=ticks/10)
+        microseconds, remainder = divmod(ticks, 10)
+        # Match timedelta's round-half-to-even rule without floating-point loss.
+        if remainder > 5 or (remainder == 5 and microseconds % 2):
+            microseconds += 1
+        timestamp = datetime.min + timedelta(microseconds=microseconds)
         timestamp = timestamp.replace(tzinfo=timezone.utc)
         return timestamp
 
     def unpack_play_data(self, mode):
         replay_length = self.unpack_int()
         offset_end = self.offset + replay_length
-        data = self.replay_data[self.offset:offset_end]
+        data = self.replay_data[self.offset : offset_end]
         data = lzma.decompress(data, format=lzma.FORMAT_AUTO)
         data = data.decode("ascii")
         (replay_data, rng_seed) = self.parse_replay_data(data, mode)
@@ -85,7 +105,7 @@ class _Unpacker:
         # remove trailing comma (if it exists) to make splitting easier.
         # stable always adds a trailing comma, but some lazer versions do not.
         replay_data_str = replay_data_str.rstrip(",")
-        events = [event.split('|') for event in replay_data_str.split(',')]
+        events = [event.split("|") for event in replay_data_str.split(",")]
 
         rng_seed = None
         play_data = []
@@ -171,10 +191,28 @@ class _Unpacker:
         (replay_data, rng_seed) = self.unpack_play_data(mode)
         replay_id = self.unpack_replay_id()
 
-        return Replay(mode, game_version, beatmap_hash, username,
-            replay_hash, count_300, count_100, count_50, count_geki, count_katu,
-            count_miss, score, max_combo, perfect, mods, life_bar_graph,
-            timestamp, replay_data, replay_id, rng_seed)
+        return Replay(
+            mode,
+            game_version,
+            beatmap_hash,
+            username,
+            replay_hash,
+            count_300,
+            count_100,
+            count_50,
+            count_geki,
+            count_katu,
+            count_miss,
+            score,
+            max_combo,
+            perfect,
+            mods,
+            life_bar_graph,
+            timestamp,
+            replay_data,
+            replay_id,
+            rng_seed,
+        )
 
 
 class _Packer:
@@ -200,7 +238,7 @@ class _Packer:
         r, i = [], len(data)
 
         while True:
-            byte = i & 0x7f
+            byte = i & 0x7F
             i = i >> 7
 
             if (i == 0 and byte & 0x40 == 0) or (i == -1 and byte & 0x40 != 0):
@@ -216,13 +254,13 @@ class _Packer:
         return self.pack_byte(11) + self.pack_byte(0)
 
     def pack_timestamp(self):
-        # windows ticks starts at year 0001, in contrast to unix time (1970).
-        # 62135596800 is the number of seconds between these two years and is
-        # added to account for this difference.
-        # The factor of 10000000 converts seconds to ticks.
-
-        ticks = (62135596800 + self.replay.timestamp.timestamp()) * 10000000
-        ticks = int(ticks)
+        # Windows ticks count 100 ns intervals since year 0001. Keep the
+        # calculation integral across Python's entire datetime range.
+        timestamp = self.replay.timestamp.astimezone(timezone.utc)
+        delta = timestamp - datetime.min.replace(tzinfo=timezone.utc)
+        ticks = (
+            (delta.days * 86400 + delta.seconds) * 1000000 + delta.microseconds
+        ) * 10
         return self.pack_long(ticks)
 
     def pack_life_bar(self):
@@ -257,16 +295,11 @@ class _Packer:
             data += f"-12345|0|0|{self.replay.rng_seed},"
 
         filters = [
-            {
-                "id": lzma.FILTER_LZMA1,
-                "dict_size": self.dict_size,
-                "mode": self.mode
-            }
+            {"id": lzma.FILTER_LZMA1, "dict_size": self.dict_size, "mode": self.mode}
         ]
 
         data = data.encode("ascii")
-        compressed = lzma.compress(data, format=lzma.FORMAT_ALONE,
-            filters=filters)
+        compressed = lzma.compress(data, format=lzma.FORMAT_ALONE, filters=filters)
 
         return self.pack_int(len(compressed)) + compressed
 
@@ -336,17 +369,18 @@ class Replay:
         Whether this replay was perfect or not.
     mods: Mod
         The mods this replay was played with.
-    life_bar_graph: Optional[List[LifeBarState]]
+    life_bar_graph: list[LifeBarState] | None
         The life bar of this replay over time.
-    replay_data: List[ReplayEvent]
+    replay_data: list[ReplayEvent]
         The replay data of the replay, including cursor position and keys
         pressed.
     replay_id: int
         The replay id of this replay, or 0 if not submitted.
-    rng_seed: Optional[int]
+    rng_seed: int | None
         The rng seed of this replay, or ``None`` if not present (typically not
         present on older replays).
     """
+
     mode: GameMode
     game_version: int
     beatmap_hash: str
@@ -362,14 +396,14 @@ class Replay:
     max_combo: int
     perfect: bool
     mods: Mod
-    life_bar_graph: Optional[List[LifeBarState]]
+    life_bar_graph: list[LifeBarState] | None
     timestamp: datetime
-    replay_data: List[ReplayEvent]
+    replay_data: list[ReplayEvent]
     replay_id: int
-    rng_seed: Optional[int]
+    rng_seed: int | None
 
     @staticmethod
-    def from_path(path):
+    def from_path(path: str | bytes | PathLike[str] | PathLike[bytes]) -> Replay:
         """
         Creates a new ``Replay`` object from the ``.osr`` file at the given
         ``path``.
@@ -388,7 +422,7 @@ class Replay:
             return Replay.from_file(f)
 
     @staticmethod
-    def from_file(file):
+    def from_file(file: BinaryIO) -> Replay:
         """
         Creates a new ``Replay`` object from an open file object.
 
@@ -406,14 +440,14 @@ class Replay:
         return Replay.from_string(data)
 
     @staticmethod
-    def from_string(data):
+    def from_string(data: bytes | bytearray) -> Replay:
         """
-        Creates a new ``Replay`` object from a string containing ``.osr`` data.
+        Creates a new ``Replay`` object from bytes containing ``.osr`` data.
 
         Parameters
         ----------
-        data: str
-           The data to parse.
+        data: bytes or bytearray
+           The binary data to parse.
 
         Returns
         -------
@@ -422,7 +456,13 @@ class Replay:
         """
         return _Unpacker(data).unpack()
 
-    def write_path(self, path, *, dict_size=None, mode=None):
+    def write_path(
+        self,
+        path: str | bytes | PathLike[str] | PathLike[bytes],
+        *,
+        dict_size: int | None = None,
+        mode: int | None = None,
+    ) -> None:
         """
         Writes the replay to the given ``path``.
 
@@ -440,7 +480,13 @@ class Replay:
         with open(path, "wb") as f:
             self.write_file(f, dict_size=dict_size, mode=mode)
 
-    def write_file(self, file, *, dict_size=None, mode=None):
+    def write_file(
+        self,
+        file: BinaryIO,
+        *,
+        dict_size: int | None = None,
+        mode: int | None = None,
+    ) -> None:
         """
         Writes the replay to an open file object.
 
@@ -452,25 +498,30 @@ class Replay:
         packed = self.pack(dict_size=dict_size, mode=mode)
         file.write(packed)
 
-    def pack(self, *, dict_size=None, mode=None):
+    def pack(self, *, dict_size: int | None = None, mode: int | None = None) -> bytes:
         """
-        Returns the text representing this ``Replay``, in ``.osr`` format.
-        The text returned by this method is suitable for writing to a file as a
+        Returns the bytes representing this ``Replay``, in ``.osr`` format.
+        The bytes returned by this method are suitable for writing to a file as a
         valid ``.osr`` file.
 
         Returns
         -------
-        str
-            The text representing this ``Replay``, in ``.osr`` format.
+        bytes
+            The bytes representing this ``Replay``, in ``.osr`` format.
         """
         return _Packer(self, dict_size=dict_size, mode=mode).pack()
 
 
-def parse_replay_data(data_string, *, decoded=False, decompressed=False,
-    mode=GameMode.STD) -> List[ReplayEvent]:
+def parse_replay_data(
+    data_string: str | bytes,
+    *,
+    decoded: bool = False,
+    decompressed: bool = False,
+    mode: GameMode = GameMode.STD,
+) -> list[ReplayEvent]:
     """
     Parses the replay data portion of a replay from a string. This method is
-    siutable for use with the replay data returned by api v1's ``/get_replay``
+    suitable for use with the replay data returned by api v1's ``/get_replay``
     endpoint, for instance.
 
     Parameters

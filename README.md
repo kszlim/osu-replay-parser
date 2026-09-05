@@ -6,10 +6,12 @@ This is a parser for the ``.osr`` format for osu! replay files, as described by 
 
 ## Installation
 
-To install, simply:
+Requires Python 3.10 or newer (tested through Python 3.14).
+
+To install:
 
 ```sh
-pip install osrparse
+python -m pip install osrparse
 ```
 
 ## Documentation
@@ -24,11 +26,11 @@ from osrparse import Replay, parse_replay_data
 replay = Replay.from_path("path/to/osr.osr")
 
 # or from an opened file object
-with open("path/to/osr.osr") as f:
+with open("path/to/osr.osr", "rb") as f:
     replay = Replay.from_file(f)
 
-# or from a string
-with open("path/to/osr.osr") as f:
+# or from bytes
+with open("path/to/osr.osr", "rb") as f:
     replay_string = f.read()
 replay = Replay.from_string(replay_string)
 
@@ -49,13 +51,41 @@ replay_data = parse_replay_data(lzma_string)
 replay.write_path("path/to/osr.osr")
 
 # or to an opened file object
-with open("path/to/osr.osr") as f:
+with open("path/to/osr.osr", "wb") as f:
     replay.write_file(f)
 
-# or to a string
+# or to bytes
 packed = replay.pack()
 
 # edited attributes are saved
 replay.username = "fake username"
 replay.write_path("path/to/new_osr.osr")
 ```
+
+## Development
+
+Install [uv](https://docs.astral.sh/uv/getting-started/installation/), then run:
+
+```sh
+uv sync --locked
+uv run pytest -q
+uv run ruff check
+uv run ruff format --check
+uv run --group docs sphinx-build -W --keep-going -b html docs build/html
+uv build
+uv run twine check dist/*
+```
+
+`uv.lock` pins development dependencies; `uv lock --upgrade` refreshes them.
+The `dev` dependency group contains the test and release tools. The existing
+`osrparse[dev]` extra remains available for consumers of the Hypothesis strategies.
+The runtime package has no third-party dependencies. Builds use `uv_build`.
+GitHub Actions runs the suite on Python 3.10–3.14 on Linux, macOS, and Windows,
+and checks the documentation, distributions, and an installed wheel.
+
+Python versions older than 3.10 are no longer supported. Public classes remain
+mutable dataclasses. Timestamp encoding now uses integer arithmetic to avoid
+precision loss for dates far from the Unix epoch.
+
+See the [PyO3 port plan](docs/pyo3-port-plan.md) for the proposed Rust migration
+and its compatibility gates.

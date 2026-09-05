@@ -11,7 +11,7 @@ copyright = "2022, Kevin Lim, Liam DeVoe"
 author = "Kevin Lim, Liam DeVoe"
 release = "v" + __version__
 version = "v" + __version__
-master_doc = 'index'
+master_doc = "index"
 
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#confval-html_show_copyright
 html_show_copyright = False
@@ -23,7 +23,7 @@ extensions = [
     "sphinx.ext.napoleon",
     "sphinx.ext.intersphinx",
     "sphinx.ext.viewcode",
-    "sphinx.ext.todo"
+    "sphinx.ext.todo",
 ]
 
 intersphinx_mapping = {"python": ("https://docs.python.org/3", None)}

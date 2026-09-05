@@ -1,8 +1,15 @@
+[build-system]
+requires = ["uv_build>=0.12.10,<0.13"]
+build-backend = "uv_build"
+
 [project]
 name = "osrparse"
 version = "7.0.1"
 description = "Parser for osr files and lzma replay streams for osu!"
 readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+license-files = ["LICENSE"]
 keywords = ["osu!", "osr", "replay", "replays", "parsing", "parser", "python"]
 authors = [
   {name = "Kevin Lim",  email = "kszlim@gmail.com"      },
@@ -13,11 +20,36 @@ classifiers = [
   "Topic :: Software Development :: Libraries",
   "Intended Audience :: Developers",
   "Operating System :: OS Independent",
-  "Programming Language :: Python :: 3"
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14"
 ]
 
 [project.optional-dependencies]
-dev = ["hypothesis"]
+dev = ["hypothesis>=6"]
+
+[dependency-groups]
+dev = ["hypothesis>=6", "pytest>=8", "ruff>=0.11", "twine>=6"]
+docs = ["sphinx>=8", "furo>=2024.8.6"]
 
 [project.urls]
 "Homepage" = "https://github.com/kszlim/osu-replay-parser"
+
+[tool.uv.build-backend]
+module-root = ""
+source-include = ["tests/**", "docs/**", "Makefile", "uv.lock"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--strict-config --strict-markers"
+
+[tool.ruff]
+target-version = "py310"
+include = ["osrparse/**/*.py", "docs/conf.py", "pyproject.toml"]
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I", "UP"]
