@@ -1,0 +1,170 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  rust-msrv:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.85.0
+      - run: cargo +1.85.0 test --locked
+
+  wheels:
+    name: Wheel (${{ matrix.platform.name }}, Python ${{ matrix.python }})
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+        platform:
+          - {name: linux-x86_64, runner: ubuntu-24.04, target: x86_64-unknown-linux-gnu}
+          - {name: linux-aarch64, runner: ubuntu-24.04-arm, target: aarch64-unknown-linux-gnu}
+          - {name: macos-x86_64, runner: macos-15-intel, target: x86_64-apple-darwin}
+          - {name: macos-arm64, runner: macos-14, target: aarch64-apple-darwin}
+          - {name: windows-x86_64, runner: windows-2022, target: x86_64-pc-windows-msvc}
+    runs-on: ${{ matrix.platform.runner }}
+    defaults:
+      run:
+        shell: bash
+    env:
+      MACOSX_DEPLOYMENT_TARGET: "11.0"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python }}
+      - uses: PyO3/maturin-action@v1
+        with:
+          maturin-version: "1.15.0"
+          rust-toolchain: "1.98.1"
+          target: ${{ matrix.platform.target }}
+          manylinux: "2014"
+          args: >-
+            --release --locked --out dist
+            --interpreter ${{ runner.os == 'Linux' && format('python{0}', matrix.python) || 'python' }}
+      - name: Test the installed wheel outside checkout
+        run: |
+          python -m pip install dist/*.whl pytest hypothesis mypy
+          mkdir -p "$RUNNER_TEMP/wheel-tests"
+          cp -r tests "$RUNNER_TEMP/wheel-tests/tests"
+          cd "$RUNNER_TEMP/wheel-tests"
+          python -m pytest -q tests
+          python -m mypy --strict tests/typing_api.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-wheel-${{ matrix.platform.name }}-cp${{ matrix.python }}
+          path: dist/*.whl
+          if-no-files-found: error
+
+  distribution:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.98.1
+        with:
+          components: rustfmt, clippy
+      - uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.12.10"
+          enable-cache: true
+          cache-dependency-glob: pyproject.toml
+          python-version: "3.14"
+      - name: Check release tag against package versions
+        if: github.event_name == 'release'
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          uv run --no-project --python 3.14 python - <<'PY'
+          import os, tomllib
+          from pathlib import Path
+          python = tomllib.loads(Path("pyproject.toml").read_text())["project"]["version"]
+          rust = tomllib.loads(Path("Cargo.toml").read_text())["package"]["version"]
+          assert python == rust, (python, rust)
+          assert os.environ["RELEASE_TAG"] == f"v{python}", "Release tag must match package version"
+          PY
+      - run: uv sync --group docs
+      - run: cargo fmt --check
+      - run: cargo test --locked
+      - run: cargo clippy --locked --all-targets -- -D warnings
+      - run: uv run mypy --strict osrparse/_native.pyi tests/typing_api.py
+      - run: uv run ruff check
+      - run: uv run ruff format --check
+      - run: uv run --group docs sphinx-build -W --keep-going -b html docs build/html
+      - run: uv build
+      - run: uv run twine check dist/*
+      - name: Test installed wheel outside checkout
+        run: |
+          uv venv /tmp/osrparse-wheel
+          uv pip install --python /tmp/osrparse-wheel/bin/python dist/*.whl pytest hypothesis mypy
+          cp -r tests /tmp/osrparse-wheel/tests
+          cd /tmp/osrparse-wheel
+          bin/python -m pytest -q tests
+          bin/python -m mypy --strict tests/typing_api.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: source-build-validation
+          path: |
+            dist/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-sdist
+          path: dist/*.tar.gz
+          if-no-files-found: error
+
+  release-assets:
+    if: github.event_name == 'release'
+    needs: [rust-msrv, wheels, distribution]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: release-*
+          merge-multiple: true
+          path: dist
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+      - name: Validate the complete distribution set
+        run: |
+          python -m pip install twine
+          python -m twine check --strict dist/*
+          python - <<'PY'
+          from pathlib import Path
+          wheels = list(Path("dist").glob("*.whl"))
+          assert len(wheels) == 25, f"Expected 25 wheels, got {len(wheels)}"
+          assert len(list(Path("dist").glob("*.tar.gz"))) == 1, "Expected one sdist"
+          PY
+      - name: Attach tested distributions to the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: gh release upload "$RELEASE_TAG" dist/* --clobber
+
+  publish-pypi:
+    if: github.event_name == 'release'
+    needs: release-assets
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/osrparse
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: release-*
+          merge-multiple: true
+          path: dist
+      - uses: pypa/gh-action-pypi-publish@release/v1

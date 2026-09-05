@@ -1,0 +1,32 @@
+[package]
+name = "osrparse-native"
+version = "7.0.1"
+description = "Native codec for osu! replay files with Python bindings"
+repository = "https://github.com/kszlim/osu-replay-parser"
+edition = "2024"
+rust-version = "1.85"
+license = "MIT"
+publish = false
+
+[lib]
+name = "_native"
+crate-type = ["cdylib", "rlib"]
+path = "rust/lib.rs"
+
+[dependencies]
+pyo3 = "0.29.2"
+lexical-write-float = { version = "1.0.6", features = ["format"] }
+leb128 = "0.2.7"
+fast-float2 = "0.2.4"
+zerocopy = { version = "0.8.56", features = ["derive"] }
+liblzma = { version = "0.4.8", default-features = false, features = ["static"] }
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+all = "warn"
